@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import supabaseAdmin from '../../../lib/db';
 import { getSession } from '../../../lib/session';
 
-// GET ?studentId= -> that student's results (self, their teacher, or admin)
+async function currentTerm() {
+  const { data } = await supabaseAdmin.from('settings').select('value').eq('key', 'current_term').maybeSingle();
+  return data?.value || 'First Term 2025/2026';
+}
+
+// GET ?studentId=&term=          -> one term's results for a student
+// GET ?studentId=&listTerms=true -> the distinct terms this student has any results for
 export async function GET(request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
@@ -14,12 +20,27 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
 
-  const { data, error } = await supabaseAdmin.from('results').select('subject, ca, exam').eq('student_id', studentId);
+  if (searchParams.get('listTerms') === 'true') {
+    const { data, error } = await supabaseAdmin.from('results').select('term').eq('student_id', studentId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const terms = [...new Set((data || []).map((r) => r.term))];
+    const term = await currentTerm();
+    if (!terms.includes(term)) terms.unshift(term); // always offer the current term, even with no scores yet
+    return NextResponse.json({ terms, currentTerm: term });
+  }
+
+  const term = searchParams.get('term') || (await currentTerm());
+  const { data, error } = await supabaseAdmin
+    .from('results')
+    .select('subject, ca, exam, term')
+    .eq('student_id', studentId)
+    .eq('term', term);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ results: data });
+  return NextResponse.json({ results: data, term });
 }
 
 // Teacher saves one subject's CA/exam score for one of their students.
+// Always writes against the school's current term — historical terms are read-only.
 export async function POST(request) {
   const session = await getSession();
   if (!session || session.role !== 'teacher') {
@@ -31,17 +52,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'studentId and subject are required.' }, { status: 400 });
   }
 
-  // Confirm this student is actually in the teacher's own class.
   const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
   const { data: student } = await supabaseAdmin.from('users').select('class_id').eq('id', studentId).single();
   if (!teacher?.class_id || teacher.class_id !== student?.class_id) {
     return NextResponse.json({ error: 'That student is not in your class.' }, { status: 403 });
   }
 
+  const term = await currentTerm();
   const { error } = await supabaseAdmin
     .from('results')
-    .upsert({ student_id: studentId, subject, ca, exam }, { onConflict: 'student_id,subject' });
+    .upsert({ student_id: studentId, subject, ca, exam, term }, { onConflict: 'student_id,subject,term' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, term });
 }

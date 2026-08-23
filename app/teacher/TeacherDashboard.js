@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import AddStudentForm from './AddStudentForm';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -10,12 +11,12 @@ export default function TeacherDashboard() {
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function loadRoster() {
     fetch('/api/students').then((r) => r.json()).then((d) => { setRoster(d.students || []); setLoading(false); });
-  }, []);
+  }
+  useEffect(loadRoster, []);
 
   if (loading) return <div className="card empty-note">Loading your class…</div>;
-  if (!roster.length) return <div className="card empty-note">No students are assigned to your class yet.</div>;
 
   return (
     <div>
@@ -23,10 +24,13 @@ export default function TeacherDashboard() {
         <button className={`tab-btn ${tab === 'attendance' ? 'active' : ''}`} onClick={() => setTab('attendance')}>Mark Attendance</button>
         <button className={`tab-btn ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Enter Results</button>
         <button className={`tab-btn ${tab === 'fees' ? 'active' : ''}`} onClick={() => setTab('fees')}>Fee Status</button>
+        <button className={`tab-btn ${tab === 'register' ? 'active' : ''}`} onClick={() => setTab('register')}>Register Student</button>
       </div>
-      {tab === 'attendance' && <AttendanceTab roster={roster} />}
-      {tab === 'results' && <ResultsTab roster={roster} />}
-      {tab === 'fees' && <FeesTab roster={roster} />}
+      {tab === 'register' && <AddStudentForm onAdded={loadRoster} />}
+      {tab !== 'register' && !roster.length && <div className="card empty-note">No students are assigned to your class yet — add your first one under "Register Student."</div>}
+      {tab === 'attendance' && !!roster.length && <AttendanceTab roster={roster} />}
+      {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
+      {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
     </div>
   );
 }
@@ -86,8 +90,13 @@ function ResultsTab({ roster }) {
   const student = roster.find((s) => s.id === studentId);
   const [subjects, setSubjects] = useState([]);
   const [scores, setScores] = useState({});
+  const [term, setTerm] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings').then((r) => r.json()).then((d) => setTerm(d.settings?.current_term || ''));
+  }, []);
 
   useEffect(() => {
     setSaved(false);
@@ -128,6 +137,7 @@ function ResultsTab({ roster }) {
           {roster.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
       </div>
+      {term && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>Scoring for: <b>{term}</b> — set by admin</div>}
       {!student?.category ? (
         <div className="empty-note">{student.full_name} has no study category assigned yet — ask the administrator to set one first.</div>
       ) : !subjects.length ? (

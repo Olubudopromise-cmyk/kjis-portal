@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import supabaseAdmin from '../../../../lib/db';
 import { verifyPassword } from '../../../../lib/password';
-import { createSessionToken, SESSION_COOKIE } from '../../../../lib/auth';
+import { createSessionToken, createFaceToken, SESSION_COOKIE } from '../../../../lib/auth';
 
 export async function POST(request) {
   const { role, identifier, password } = await request.json();
@@ -35,14 +35,15 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 });
   }
 
-  // NOTE — face verification hook:
-  // If you keep face verification, don't set the session cookie yet here.
-  // Instead return { ok:true, pendingFaceCheck:true, userId:user.id } and have
-  // the client go through a face-check screen that calls a *second* endpoint
-  // (e.g. /api/auth/face-verify) which only then calls createSessionToken and
-  // sets the cookie below. That keeps the trusted session gated on both
-  // checks. This MVP issues the session immediately so the rest of the app
-  // is testable end-to-end first.
+  // If this student has a reference photo on file, credentials alone aren't
+  // enough — send them to the face-check step instead of logging in yet.
+  // A short-lived token proves "password was correct" without granting a
+  // real session; only /api/auth/face-verify can turn it into one.
+  if (role === 'student' && user.face_photo_url) {
+    const faceToken = await createFaceToken({ id: user.id, name: user.full_name });
+    return NextResponse.json({ ok: true, pendingFaceCheck: true, faceToken, name: user.full_name });
+  }
+
   const token = await createSessionToken({
     id: user.id,
     role: user.role,
@@ -59,3 +60,4 @@ export async function POST(request) {
   });
   return res;
 }
+

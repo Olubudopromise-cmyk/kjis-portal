@@ -17,7 +17,8 @@ export async function GET(request) {
   // Teachers can only ever list their own class, regardless of what's asked for.
   if (session.role === 'teacher') {
     const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
-    classId = teacher?.class_id || null;
+    if (!teacher?.class_id) return NextResponse.json({ students: [] }); // not assigned to a class yet — see nobody, not everybody
+    classId = teacher.class_id;
   }
 
   let query = supabaseAdmin
@@ -42,7 +43,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { fullName, password, classId, category, totalFee, admissionNo } = body;
+  const { fullName, password, classId, category, totalFee, admissionNo, facePhotoBase64 } = body;
 
   if (!fullName || !password) {
     return NextResponse.json({ error: 'Full name and password are required.' }, { status: 400 });
@@ -52,7 +53,10 @@ export async function POST(request) {
   let effectiveClassId = classId || null;
   if (session.role === 'teacher') {
     const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
-    effectiveClassId = teacher?.class_id || null;
+    if (!teacher?.class_id) {
+      return NextResponse.json({ error: 'You are not assigned to a class yet — ask the administrator to assign you one first.' }, { status: 400 });
+    }
+    effectiveClassId = teacher.class_id;
   }
 
   const { data: existing } = await supabaseAdmin
@@ -86,5 +90,27 @@ export async function POST(request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Optional reference photo, used later at login for face verification
+  // (see /api/auth/face-verify). Stored in a private Supabase Storage
+  // bucket — never made public.
+  if (facePhotoBase64) {
+    try {
+      const base64Data = facePhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      const path = `${data.id}.jpg`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('student-faces')
+        .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
+      if (!uploadError) {
+        await supabaseAdmin.from('users').update({ face_photo_url: path }).eq('id', data.id);
+        data.face_photo_url = path;
+      }
+    } catch {
+      // Student record already exists at this point — don't fail the whole
+      // request over a photo upload issue; they can add it later.
+    }
+  }
+
   return NextResponse.json({ ok: true, student: data });
 }

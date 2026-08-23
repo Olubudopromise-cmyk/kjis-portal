@@ -118,15 +118,29 @@ function FeesView({ student, balance }) {
 function ReportCardView({ studentId, category }) {
   const [subjects, setSubjects] = useState(null);
   const [results, setResults] = useState({});
+  const [terms, setTerms] = useState([]);
+  const [term, setTerm] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/results?studentId=${studentId}&listTerms=true`).then((r) => r.json()).then((d) => {
+      setTerms(d.terms || []);
+      setTerm(d.currentTerm || (d.terms || [])[0] || '');
+    });
+  }, [studentId]);
+
   useEffect(() => {
     if (!category) { setSubjects([]); return; }
     fetch('/api/subjects').then((r) => r.json()).then((d) => setSubjects((d.subjects?.[category] || []).map((s) => s.name)));
-    fetch(`/api/results?studentId=${studentId}`).then((r) => r.json()).then((d) => {
+  }, [category]);
+
+  useEffect(() => {
+    if (!term) return;
+    fetch(`/api/results?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
       const m = {};
       (d.results || []).forEach((r) => { m[r.subject] = r; });
       setResults(m);
     });
-  }, [studentId, category]);
+  }, [studentId, term]);
 
   if (subjects === null) return <div className="card empty-note">Loading…</div>;
   if (!subjects.length) return <div className="card empty-note">{category ? 'No subjects set up for your category yet.' : 'No study category assigned yet.'}</div>;
@@ -144,8 +158,16 @@ function ReportCardView({ studentId, category }) {
     <div className="card">
       <div className="toolbar">
         <div style={{ fontWeight: 700 }}>Termly Report Card</div>
-        <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>Print / Save as PDF</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {terms.length > 1 && (
+            <select value={term} onChange={(e) => setTerm(e.target.value)} style={{ padding: '7px 10px', border: '1.5px solid var(--line)', borderRadius: 7 }}>
+              {terms.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+          <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>Print / Save as PDF</button>
+        </div>
       </div>
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>{term}</div>
       <table>
         <thead><tr><th>Subject</th><th>CA (/40)</th><th>Exam (/60)</th><th>Total</th><th>Grade</th></tr></thead>
         <tbody>

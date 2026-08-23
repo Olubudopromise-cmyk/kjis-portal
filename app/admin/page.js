@@ -3,6 +3,7 @@ import { getSession } from '../../lib/session';
 import supabaseAdmin from '../../lib/db';
 import LogoutButton from '../../components/LogoutButton';
 import AddStudentForm from './AddStudentForm';
+import TermControl from './TermControl';
 
 export default async function AdminPage() {
   const session = await getSession();
@@ -14,6 +15,7 @@ export default async function AdminPage() {
     .select('id, full_name, class_id, category, total_fee, paid')
     .eq('role', 'student')
     .order('created_at', { ascending: false });
+  const { data: termRow } = await supabaseAdmin.from('settings').select('value').eq('key', 'current_term').maybeSingle();
 
   return (
     <div>
@@ -32,9 +34,12 @@ export default async function AdminPage() {
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
           <Link href="/admin/subjects" className="btn btn-ghost btn-sm">Categories &amp; Subjects</Link>
+          <Link href="/admin/teachers" className="btn btn-ghost btn-sm">Teachers</Link>
           <Link href="/admin/timetable" className="btn btn-ghost btn-sm">Timetable</Link>
           <Link href="/admin/announcements" className="btn btn-ghost btn-sm">Notices</Link>
         </div>
+
+        <TermControl initialTerm={termRow?.value || 'First Term 2025/2026'} />
 
         <div className="grid g3" style={{ marginBottom: 20 }}>
           <div className="card stat-card"><div className="label">Active students</div><div className="value">{(students || []).length}</div></div>

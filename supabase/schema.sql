@@ -19,7 +19,8 @@ create table users (
   total_fee numeric default 0,
   paid numeric default 0,
   admission_no text,
-  face_photo_url text,         -- storage URL of reference photo, if you keep face verification
+  face_photo_url text,         -- storage PATH (not a public URL) in the private
+                                -- 'student-faces' bucket — see README for setup
   created_at timestamptz default now()
 );
 create unique index users_username_unique on users (lower(username)) where username is not null;
@@ -37,7 +38,8 @@ create table results (
   subject text not null,
   ca numeric,
   exam numeric,
-  unique(student_id, subject)
+  term text not null default 'First Term 2025/2026',
+  unique(student_id, subject, term)
 );
 
 create table attendance (
@@ -74,6 +76,13 @@ create table timetable (
   teacher_name text
 );
 
+-- A small key/value table for school-wide settings — right now just which
+-- term is "current" (what teachers score into, what students see by default).
+create table settings (
+  key text primary key,
+  value text
+);
+
 -- Lock every table down by default. The browser never talks to Supabase directly —
 -- only your Next.js API routes do, using the service-role key, which bypasses RLS.
 -- "No policies" here is intentional, not an oversight.
@@ -85,9 +94,12 @@ alter table attendance enable row level security;
 alter table payments enable row level security;
 alter table announcements enable row level security;
 alter table timetable enable row level security;
+alter table settings enable row level security;
 
 -- A few starter classes to get going — edit/add as needed.
 insert into classes (name) values ('JSS 1'), ('JSS 2'), ('SS 1');
+
+insert into settings (key, value) values ('current_term', 'First Term 2025/2026');
 
 -- Your admin account is NOT created here (passwords must be hashed, not written
 -- into SQL by hand). After .env.local is set up, run:

@@ -28,6 +28,12 @@ export default function LoginPage() {
       setError(data.error || 'Login failed.');
       return;
     }
+    if (data.pendingFaceCheck) {
+      sessionStorage.setItem('kjis_face_token', data.faceToken);
+      sessionStorage.setItem('kjis_face_name', data.name || '');
+      router.push('/login/face-verify');
+      return;
+    }
     router.push('/' + role);
   }
 
