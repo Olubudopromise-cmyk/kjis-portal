@@ -1,10 +1,9 @@
-import { cookies } from 'next/headers';
-import { verifySessionToken, SESSION_COOKIE } from '../../lib/auth';
+import { getSession } from '../../lib/session';
 import LogoutButton from '../../components/LogoutButton';
+import TeacherDashboard from './TeacherDashboard';
 
 export default async function TeacherPage() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySessionToken(token) : null;
+  const session = await getSession();
   if (!session) return null;
 
   return (
@@ -21,13 +20,7 @@ export default async function TeacherPage() {
       </div>
       <main>
         <div className="page-head"><h2>Teacher Desk</h2></div>
-        <div className="card">
-          <p style={{ color: 'var(--muted)', fontSize: 13.5 }}>
-            Starter page — port over attendance marking, results entry and the class roster from the
-            prototype as components here, calling <code>/api/students</code>, and new
-            <code>/api/attendance</code> and <code>/api/results</code> routes you add next.
-          </p>
-        </div>
+        <TeacherDashboard />
       </main>
     </div>
   );

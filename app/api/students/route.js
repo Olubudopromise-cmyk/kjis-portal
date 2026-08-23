@@ -1,12 +1,35 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import supabaseAdmin from '../../../lib/db';
 import { hashPassword } from '../../../lib/password';
-import { verifySessionToken, SESSION_COOKIE } from '../../../lib/auth';
+import { getSession } from '../../../lib/session';
 
-async function getSession() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  return token ? verifySessionToken(token) : null;
+// List students — used for admin's full table, and for a teacher's own
+// class roster (attendance/results screens pass ?classId=).
+export async function GET(request) {
+  const session = await getSession();
+  if (!session || !['admin', 'teacher'].includes(session.role)) {
+    return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  let classId = searchParams.get('classId');
+
+  // Teachers can only ever list their own class, regardless of what's asked for.
+  if (session.role === 'teacher') {
+    const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
+    classId = teacher?.class_id || null;
+  }
+
+  let query = supabaseAdmin
+    .from('users')
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no')
+    .eq('role', 'student')
+    .order('full_name');
+  if (classId) query = query.eq('class_id', classId);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ students: data });
 }
 
 // Admin or a teacher registering their own class can create a student —
@@ -23,6 +46,13 @@ export async function POST(request) {
 
   if (!fullName || !password) {
     return NextResponse.json({ error: 'Full name and password are required.' }, { status: 400 });
+  }
+
+  // Teachers can only add students into their own class.
+  let effectiveClassId = classId || null;
+  if (session.role === 'teacher') {
+    const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
+    effectiveClassId = teacher?.class_id || null;
   }
 
   const { data: existing } = await supabaseAdmin
@@ -46,7 +76,7 @@ export async function POST(request) {
       role: 'student',
       full_name: fullName.trim(),
       password_hash,
-      class_id: classId || null,
+      class_id: effectiveClassId,
       category: category || null,
       total_fee: totalFee || 0,
       paid: 0,

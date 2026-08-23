@@ -1,12 +1,11 @@
-import { cookies } from 'next/headers';
-import { verifySessionToken, SESSION_COOKIE } from '../../lib/auth';
+import Link from 'next/link';
+import { getSession } from '../../lib/session';
 import supabaseAdmin from '../../lib/db';
 import LogoutButton from '../../components/LogoutButton';
 import AddStudentForm from './AddStudentForm';
 
 export default async function AdminPage() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySessionToken(token) : null;
+  const session = await getSession();
   if (!session) return null;
 
   const { data: classes } = await supabaseAdmin.from('classes').select('*').order('name');
@@ -31,19 +30,27 @@ export default async function AdminPage() {
       <main>
         <div className="page-head"><h2>Admin Desk</h2></div>
 
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+          <Link href="/admin/subjects" className="btn btn-ghost btn-sm">Categories &amp; Subjects</Link>
+          <Link href="/admin/timetable" className="btn btn-ghost btn-sm">Timetable</Link>
+          <Link href="/admin/announcements" className="btn btn-ghost btn-sm">Notices</Link>
+        </div>
+
+        <div className="grid g3" style={{ marginBottom: 20 }}>
+          <div className="card stat-card"><div className="label">Active students</div><div className="value">{(students || []).length}</div></div>
+          <div className="card stat-card"><div className="label">Total fees billed</div><div className="value">₦{(students || []).reduce((s, u) => s + (u.total_fee || 0), 0).toLocaleString()}</div></div>
+          <div className="card stat-card"><div className="label">Total collected</div><div className="value" style={{ color: 'var(--success)' }}>₦{(students || []).reduce((s, u) => s + (u.paid || 0), 0).toLocaleString()}</div></div>
+        </div>
+
         <AddStudentForm classes={classes || []} />
 
         <div className="card" style={{ marginTop: 20 }}>
           <div style={{ fontWeight: 700, marginBottom: 10 }}>Students ({(students || []).length})</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
-                <th>Name</th><th>Category</th><th>Total Fee</th><th>Paid</th><th>Balance</th>
-              </tr>
-            </thead>
+          <table>
+            <thead><tr><th>Name</th><th>Category</th><th>Total Fee</th><th>Paid</th><th>Balance</th></tr></thead>
             <tbody>
               {(students || []).map((s) => (
-                <tr key={s.id} style={{ borderTop: '1px solid var(--line)' }}>
+                <tr key={s.id}>
                   <td>{s.full_name}</td>
                   <td>{s.category || '—'}</td>
                   <td className="mono">₦{(s.total_fee || 0).toLocaleString()}</td>

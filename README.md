@@ -12,10 +12,24 @@ Proprietary — all rights reserved. This code is built specifically for King Ja
 International School and is not licensed for reuse, distribution, or modification
 by others.
 
-This ships with: login (student-by-name / staff-by-username), a starter dashboard
-per role, and admin "register a student" with a real database. Attendance, results,
-subjects, the AI tutor and face verification from the prototype are **not yet ported
-in** — see "What's next" below.
+This ships with real, working features across all three roles:
+
+- **Login** — student by full name, staff by username, hashed passwords, signed sessions.
+- **Admin** — register students (auto-generates a suggested password from the name),
+  manage classes, manage subjects per category (Science/Art/Commercial), post notices,
+  build each class's weekly timetable.
+- **Teacher** — mark daily attendance for their class, enter CA/exam scores per subject,
+  view their class's fee status.
+- **Student** — attendance history with a running %, a printable termly report card,
+  their subject list, their weekly timetable, an AI study assistant (calls Claude
+  server-side, so the API key never reaches the browser), school notices, and paying
+  their fee balance through a real Paystack checkout.
+
+**Not yet in this version:** face verification (see the note in
+`app/api/auth/login/route.js` for how to wire it in properly), and a teacher-facing
+"register a student into my class" screen (the API route already supports it —
+`POST /api/students` as a teacher — it just doesn't have a UI yet, unlike admin's
+version on `/admin`).
 
 ## 1. Create your Supabase project
 
@@ -40,7 +54,8 @@ cp .env.example .env.local
 ```
 
 Fill in `.env.local` with your real Supabase URL/key, a random `SESSION_SECRET`
-(generate one with `openssl rand -base64 48`), and your Paystack secret key.
+(generate one with `openssl rand -base64 48`), your Paystack secret key, and your
+Anthropic API key (for the AI tutor — get one at console.anthropic.com/settings/keys).
 **Never commit `.env.local`** — it's already in `.gitignore`.
 
 ## 4. Install and run locally
@@ -78,20 +93,20 @@ git push -u origin main
 
 ## What's next (in priority order)
 
-- **Attendance & results API routes** — same pattern as `/api/students`: a server
-  route that checks `session.role`, then reads/writes Supabase.
+- **A teacher-facing "register a student" screen** — the `/api/students` route
+  already accepts requests from teachers, scoped to their own class. It just needs
+  the same kind of form the admin page already has.
 - **Face verification, done properly** — see the note in
   `app/api/auth/login/route.js`. Either drop it for v1, or integrate a vendor
   (AWS Rekognition / Azure Face API) and gate session creation on a second,
   server-verified step. Get parental consent before storing any student's photo —
   Nigeria's NDPR treats this as sensitive data.
-- **AI tutor route** — a `/api/ai/ask` route that calls the Anthropic API
-  server-side (so your API key never reaches the browser), scoped to the
-  logged-in student's subjects.
-- **Timetable** — a new `timetable` table (class_id, day, period, subject) plus
-  a student/teacher view.
-- **Report cards** — port the grading logic from the prototype into a
-  `/api/results` route and a printable report page.
+- **Payment status polling** — right now the student's balance updates as soon as
+  Paystack's webhook fires, but the page itself doesn't auto-refresh after they're
+  redirected back from checkout. A simple "check payment status" poll or a toast
+  on return would smooth that out.
+- **Report card terms/sessions** — results currently aren't split by term; add a
+  `term` column to `results` when you're ready to keep history across terms.
 
 ## Security notes baked in already
 

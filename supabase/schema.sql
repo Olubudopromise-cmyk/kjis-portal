@@ -65,6 +65,15 @@ create table announcements (
   created_at timestamptz default now()
 );
 
+create table timetable (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid references classes(id) on delete cascade,
+  day_of_week text not null check (day_of_week in ('Monday','Tuesday','Wednesday','Thursday','Friday')),
+  period_label text not null,   -- e.g. "8:00 - 8:40"
+  subject text not null,
+  teacher_name text
+);
+
 -- Lock every table down by default. The browser never talks to Supabase directly —
 -- only your Next.js API routes do, using the service-role key, which bypasses RLS.
 -- "No policies" here is intentional, not an oversight.
@@ -75,6 +84,7 @@ alter table results enable row level security;
 alter table attendance enable row level security;
 alter table payments enable row level security;
 alter table announcements enable row level security;
+alter table timetable enable row level security;
 
 -- A few starter classes to get going — edit/add as needed.
 insert into classes (name) values ('JSS 1'), ('JSS 2'), ('SS 1');
