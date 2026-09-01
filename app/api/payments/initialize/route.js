@@ -20,6 +20,10 @@ export async function POST(request) {
   }
 
   const reference = `kjis_${student.id}_${Date.now()}`;
+  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!paystackSecretKey) {
+    return NextResponse.json({ error: 'Payment processing is not configured yet. Add PAYSTACK_SECRET_KEY to the environment.' }, { status: 500 });
+  }
 
   // Paystack requires an email on the transaction even though students log in
   // by name — this synthetic address is only ever used by Paystack, never for
@@ -27,7 +31,7 @@ export async function POST(request) {
   const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      Authorization: `Bearer ${paystackSecretKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

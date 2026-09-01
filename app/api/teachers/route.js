@@ -34,7 +34,7 @@ export async function POST(request) {
   const { data, error } = await supabaseAdmin
     .from('users')
     .insert({ role: 'teacher', full_name: fullName.trim(), username: username.trim(), password_hash, class_id: classId || null })
-    .select()
+    .select('id, full_name, username, class_id')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

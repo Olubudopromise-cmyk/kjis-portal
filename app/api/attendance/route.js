@@ -7,6 +7,17 @@ async function teacherClassId(session) {
   return data?.class_id || null;
 }
 
+async function teacherMayAccessStudent(session, studentId) {
+  if (session.role === 'admin') return true;
+  if (session.role === 'student') return session.id === studentId;
+  if (session.role === 'teacher') {
+    const { data: student } = await supabaseAdmin.from('users').select('class_id').eq('id', studentId).single();
+    const teacherClassId = await teacherClassId(session);
+    return Boolean(student && teacherClassId && student.class_id === teacherClassId);
+  }
+  return false;
+}
+
 // GET ?classId=&date=          -> one day's records for a class (teacher)
 // GET ?studentId=              -> a student's full attendance history (self, or admin)
 export async function GET(request) {
@@ -19,7 +30,8 @@ export async function GET(request) {
   const date = searchParams.get('date');
 
   if (studentId) {
-    if (session.role === 'student' && session.id !== studentId) {
+    const allowed = await teacherMayAccessStudent(session, studentId);
+    if (!allowed) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
     const { data, error } = await supabaseAdmin
@@ -32,6 +44,12 @@ export async function GET(request) {
   }
 
   if (classId && date) {
+    if (session.role === 'teacher') {
+      const teacherClass = await teacherClassId(session);
+      if (!teacherClass || teacherClass !== classId) {
+        return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+      }
+    }
     const { data, error } = await supabaseAdmin
       .from('attendance')
       .select('student_id, status')

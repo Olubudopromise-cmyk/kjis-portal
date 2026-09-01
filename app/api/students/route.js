@@ -86,7 +86,7 @@ export async function POST(request) {
       paid: 0,
       admission_no: admissionNo || null,
     })
-    .select()
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no, face_photo_url')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

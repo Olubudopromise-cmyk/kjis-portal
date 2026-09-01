@@ -11,8 +11,14 @@ import supabaseAdmin from '../../../../lib/db';
 export async function POST(request) {
   const rawBody = await request.text();
   const signature = request.headers.get('x-paystack-signature');
+  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+
+  if (!paystackSecretKey) {
+    return NextResponse.json({ error: 'Payment webhook is not configured yet.' }, { status: 500 });
+  }
+
   const expected = crypto
-    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+    .createHmac('sha512', paystackSecretKey)
     .update(rawBody)
     .digest('hex');
 

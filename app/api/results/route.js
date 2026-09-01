@@ -19,6 +19,13 @@ export async function GET(request) {
   if (session.role === 'student' && session.id !== studentId) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
+  if (session.role === 'teacher') {
+    const { data: student } = await supabaseAdmin.from('users').select('class_id').eq('id', studentId).single();
+    const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
+    if (!student || !teacher || student.class_id !== teacher.class_id) {
+      return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+    }
+  }
 
   if (searchParams.get('listTerms') === 'true') {
     const { data, error } = await supabaseAdmin.from('results').select('term').eq('student_id', studentId);

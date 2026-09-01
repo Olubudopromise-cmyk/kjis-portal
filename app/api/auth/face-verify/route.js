@@ -3,13 +3,23 @@ import { RekognitionClient, CompareFacesCommand } from '@aws-sdk/client-rekognit
 import supabaseAdmin from '../../../../lib/db';
 import { verifySessionToken, createSessionToken, SESSION_COOKIE } from '../../../../lib/auth';
 
-const rekognition = new RekognitionClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+function getRekognitionClient() {
+  const region = process.env.AWS_REGION;
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!region || !accessKeyId || !secretAccessKey) {
+    throw new Error('Missing AWS Rekognition environment variables: AWS_REGION, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY are required.');
+  }
+
+  return new RekognitionClient({
+    region,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  });
+}
 
 const SIMILARITY_THRESHOLD = 85; // 0-100. Higher = stricter match.
 
@@ -45,6 +55,7 @@ export async function POST(request) {
 
   let matched = false;
   try {
+    const rekognition = getRekognitionClient();
     const result = await rekognition.send(
       new CompareFacesCommand({
         SourceImage: { Bytes: liveBuffer },

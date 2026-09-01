@@ -37,7 +37,7 @@ export default function AddStudentForm({ onAdded }) {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setError(data.error || 'Could not add student.'); return; }
-    setSuccess(`Added ${fullName}. Their login: full name "${fullName}", password "${password}".`);
+    setSuccess(`Added ${fullName} to your class.`);
     setFullName(''); setPassword(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFacePhoto(null);
     if (onAdded) onAdded();
   }
