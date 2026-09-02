@@ -15,15 +15,15 @@ by others.
   sessions, plus **real face verification** for students who have a reference photo
   on file — matched server-side against AWS Rekognition, never trusted from the
   browser. Students without a photo on file simply skip that step (see "Known gaps"
-  below).
+  below). Staff can self-reset their password via email (Resend).
 - **Admin** — register students (with optional face capture, auto-generates a
   suggested password), register teachers and assign them a class, manage subjects
   per category (Science/Art/Commercial), post notices, build each class's weekly
-  timetable, and set the school's **current term** so results roll over cleanly
-  between terms.
+  timetable, set the school's **current term** so results roll over cleanly
+  between terms, and reset student passwords directly.
 - **Teacher** — register students straight into their own class (with face capture),
   mark daily attendance, enter CA/exam scores per subject, view their class's fee
-  status.
+  status, and reset student passwords directly.
 - **Student** — attendance history with a running %, a printable termly report card
   with a **term switcher** to look back at past terms, their subject list, their
   weekly timetable, an AI study assistant (calls Claude server-side, key never
@@ -46,9 +46,10 @@ by others.
 2. **SQL Editor → New query** — paste the contents of `supabase/schema.sql` and run
    it. This creates every table for a fresh install (including timetable, settings,
    and multi-term results).
-   - If you'd already run an earlier version of this schema, instead run the two
-     files in `supabase/migrations/` in order (002, then 003) — they only add
-     what's missing.
+   - If you'd already run an earlier version of this schema, instead run the
+     migration files in `supabase/migrations/` in order (002, 003, 004) — they
+     only add what's missing. Run 004 to add the password reset tables and the
+     `email` column to `users`.
 3. **Storage → New bucket** — create a bucket named exactly `student-faces`, set to
    **Private**. This is where reference face photos live; the app only ever reads
    it server-side with the service-role key, never publicly.
@@ -78,7 +79,26 @@ file — you can skip this section entirely for launch and add it later.
 
 Create an API key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys).
 
-## 5. Configure environment variables
+## 5. Set up email for password resets (Resend)
+
+Staff (teachers and admin) can self-reset their password via an email link.
+This uses [Resend](https://resend.com) for transactional email.
+
+1. Create a free account at [resend.com](https://resend.com).
+2. Verify a sending domain you own, **or** use Resend's built-in test domain
+   (`onboarding@resend.dev`) for development — it works out of the box with no
+   DNS setup.
+3. Copy your **API key** from the Resend dashboard.
+4. Run the migration to add the required tables:
+   ```
+   SQL Editor → paste supabase/migrations/004_password_reset.sql → Run
+   ```
+5. Add `RESEND_API_KEY` to `.env.local` (see step 6).
+
+Student password resets don't use email — a teacher or admin resets it directly
+from the dashboard.
+
+## 6. Configure environment variables
 
 ```
 cp .env.example .env.local
@@ -89,7 +109,7 @@ random `SESSION_SECRET` (generate one with `openssl rand -base64 48`), your
 Paystack secret key, your Anthropic key, and your AWS credentials. **Never commit
 `.env.local`** — it's already in `.gitignore`.
 
-## 6. Install and run locally
+## 7. Install and run locally
 
 ```
 npm install
@@ -101,7 +121,7 @@ Visit `http://localhost:3000`, choose "Head Admin", and sign in. From there, add
 class (if you didn't run the seed data), register a teacher, and register a
 student.
 
-## 7. Push to GitHub
+## 8. Push to GitHub
 
 ```
 git init
@@ -112,7 +132,7 @@ git remote add origin https://github.com/<your-username>/<your-repo>.git
 git push -u origin main
 ```
 
-## 8. Deploy
+## 9. Deploy
 
 1. Go to [vercel.com](https://vercel.com) → New Project → import your GitHub repo.
 2. In the Vercel project's **Settings → Environment Variables**, add every variable

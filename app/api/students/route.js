@@ -114,3 +114,53 @@ export async function POST(request) {
 
   return NextResponse.json({ ok: true, student: data });
 }
+
+// Admin or teacher resetting a student's password directly.
+export async function PUT(request) {
+  const session = await getSession();
+  if (!session || !['admin', 'teacher'].includes(session.role)) {
+    return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+  }
+
+  const { studentId, newPassword } = await request.json();
+
+  if (!studentId || !newPassword) {
+    return NextResponse.json({ error: 'Missing student ID or new password.' }, { status: 400 });
+  }
+
+  if (typeof newPassword !== 'string' || newPassword.length < 4) {
+    return NextResponse.json({ error: 'Password must be at least 4 characters.' }, { status: 400 });
+  }
+
+  // Verify the student exists and belongs to the teacher's class (if teacher).
+  const { data: student, error: lookupError } = await supabaseAdmin
+    .from('users')
+    .select('id, class_id')
+    .eq('id', studentId)
+    .eq('role', 'student')
+    .maybeSingle();
+
+  if (lookupError || !student) {
+    return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+  }
+
+  if (session.role === 'teacher') {
+    const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
+    if (!teacher?.class_id || student.class_id !== teacher.class_id) {
+      return NextResponse.json({ error: 'You can only reset passwords for students in your own class.' }, { status: 403 });
+    }
+  }
+
+  const password_hash = await hashPassword(newPassword);
+  const { error: updateError } = await supabaseAdmin
+    .from('users')
+    .update({ password_hash })
+    .eq('id', studentId);
+
+  if (updateError) {
+    console.error('Failed to reset student password:', updateError);
+    return NextResponse.json({ error: 'Could not update password.' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

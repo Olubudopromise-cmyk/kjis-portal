@@ -10,7 +10,7 @@ export async function GET() {
   }
   const { data, error } = await supabaseAdmin
     .from('users')
-    .select('id, full_name, username, class_id')
+    .select('id, full_name, username, email, class_id')
     .eq('role', 'teacher')
     .order('full_name');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -22,9 +22,9 @@ export async function POST(request) {
   if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
-  const { fullName, username, password, classId } = await request.json();
-  if (!fullName || !username || !password) {
-    return NextResponse.json({ error: 'Full name, username and password are required.' }, { status: 400 });
+  const { fullName, username, password, classId, email } = await request.json();
+  if (!fullName || !username || !password || !email) {
+    return NextResponse.json({ error: 'Full name, username, email and password are required.' }, { status: 400 });
   }
 
   const { data: existing } = await supabaseAdmin.from('users').select('id').ilike('username', username.trim()).maybeSingle();
@@ -33,8 +33,15 @@ export async function POST(request) {
   const password_hash = await hashPassword(password);
   const { data, error } = await supabaseAdmin
     .from('users')
-    .insert({ role: 'teacher', full_name: fullName.trim(), username: username.trim(), password_hash, class_id: classId || null })
-    .select('id, full_name, username, class_id')
+    .insert({
+      role: 'teacher',
+      full_name: fullName.trim(),
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
+      password_hash,
+      class_id: classId || null,
+    })
+    .select('id, full_name, username, email, class_id')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

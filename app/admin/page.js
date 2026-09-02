@@ -4,6 +4,7 @@ import supabaseAdmin from '../../lib/db';
 import LogoutButton from '../../components/LogoutButton';
 import AddStudentForm from './AddStudentForm';
 import TermControl from './TermControl';
+import StudentTable from './StudentTable';
 
 export default async function AdminPage() {
   const session = await getSession();
@@ -49,23 +50,7 @@ export default async function AdminPage() {
 
         <AddStudentForm classes={classes || []} />
 
-        <div className="card" style={{ marginTop: 20 }}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>Students ({(students || []).length})</div>
-          <table>
-            <thead><tr><th>Name</th><th>Category</th><th>Total Fee</th><th>Paid</th><th>Balance</th></tr></thead>
-            <tbody>
-              {(students || []).map((s) => (
-                <tr key={s.id}>
-                  <td>{s.full_name}</td>
-                  <td>{s.category || '—'}</td>
-                  <td className="mono">₦{(s.total_fee || 0).toLocaleString()}</td>
-                  <td className="mono">₦{(s.paid || 0).toLocaleString()}</td>
-                  <td className="mono">₦{((s.total_fee || 0) - (s.paid || 0)).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <StudentTable students={students || []} />
       </main>
     </div>
   );

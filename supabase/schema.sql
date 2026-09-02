@@ -13,6 +13,7 @@ create table users (
   role text not null check (role in ('student','teacher','admin')),
   full_name text,              -- students log in with this (their registered name)
   username text,               -- teachers/admin log in with this
+  email text,                  -- staff self-service password reset (nullable for existing rows)
   password_hash text not null, -- bcrypt hash, never plain text
   class_id uuid references classes(id),
   category text check (category in ('Science','Art','Commercial')),
@@ -83,6 +84,16 @@ create table settings (
   value text
 );
 
+-- Staff self-service password reset tokens (see /api/auth/forgot-password).
+create table password_resets (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references users(id) on delete cascade,
+  token      text not null unique,
+  expires_at timestamptz not null,
+  used       boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 -- Lock every table down by default. The browser never talks to Supabase directly —
 -- only your Next.js API routes do, using the service-role key, which bypasses RLS.
 -- "No policies" here is intentional, not an oversight.
@@ -95,6 +106,7 @@ alter table payments enable row level security;
 alter table announcements enable row level security;
 alter table timetable enable row level security;
 alter table settings enable row level security;
+alter table password_resets enable row level security;
 
 -- A few starter classes to get going — edit/add as needed.
 insert into classes (name) values ('JSS 1'), ('JSS 2'), ('SS 1');

@@ -5,7 +5,7 @@ import Link from 'next/link';
 export default function TeachersAdminPage() {
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [form, setForm] = useState({ fullName: '', username: '', password: '', classId: '' });
+  const [form, setForm] = useState({ fullName: '', username: '', password: '', email: '', classId: '' });
   const [error, setError] = useState('');
 
   function load() {
@@ -20,7 +20,7 @@ export default function TeachersAdminPage() {
     const res = await fetch('/api/teachers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     const data = await res.json();
     if (!res.ok) { setError(data.error); return; }
-    setForm({ fullName: '', username: '', password: '', classId: '' });
+    setForm({ fullName: '', username: '', password: '', email: '', classId: '' });
     load();
   }
 
@@ -41,6 +41,7 @@ export default function TeachersAdminPage() {
         <form onSubmit={add} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="field"><label>Full name</label><input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required /></div>
           <div className="field"><label>Username</label><input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required /></div>
+          <div className="field"><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required placeholder="teacher@school.com" /></div>
           <div className="field"><label>Password</label><input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /></div>
           <div className="field">
             <label>Assign class</label>
@@ -56,9 +57,9 @@ export default function TeachersAdminPage() {
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Teachers ({teachers.length})</div>
         {!teachers.length ? <div className="empty-note">No teachers added yet.</div> : (
           <table>
-            <thead><tr><th>Name</th><th>Username</th><th>Class</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Class</th><th></th></tr></thead>
             <tbody>{teachers.map((t) => (
-              <tr key={t.id}><td>{t.full_name}</td><td className="mono">{t.username}</td><td>{classNameById(t.class_id)}</td>
+              <tr key={t.id}><td>{t.full_name}</td><td className="mono">{t.username}</td><td>{t.email || '—'}</td><td>{classNameById(t.class_id)}</td>
                 <td><button className="btn btn-danger btn-sm" onClick={() => remove(t.id)}>Remove</button></td></tr>
             ))}</tbody>
           </table>

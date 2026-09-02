@@ -2,16 +2,17 @@
 // bcrypt-hashed password (never store it as plain text).
 //
 // Usage (after npm install and setting up .env.local):
-//   npm run create-admin -- admin "a-strong-password" "Head Administrator"
+//   npm run create-admin -- admin "a-strong-password" "Head Administrator" admin@school.com
 
 require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
 
 async function main() {
-  const [, , username, password, fullName] = process.argv;
-  if (!username || !password) {
-    console.log('Usage: npm run create-admin -- <username> <password> "<Full Name>"');
+  const [, , username, password, fullName, email] = process.argv;
+  if (!username || !password || !email) {
+    console.log('Usage: npm run create-admin -- <username> <password> "<Full Name>" <email>');
+    console.log('Example: npm run create-admin -- admin "s3cret" "Head Administrator" admin@school.com');
     process.exit(1);
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -25,6 +26,7 @@ async function main() {
   const { error } = await supabase.from('users').insert({
     role: 'admin',
     username,
+    email: email.trim().toLowerCase(),
     password_hash,
     full_name: fullName || 'Head Administrator',
   });

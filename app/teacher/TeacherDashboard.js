@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import AddStudentForm from './AddStudentForm';
+import ResetStudentPassword from '../../components/ResetStudentPassword';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -24,6 +25,7 @@ export default function TeacherDashboard() {
         <button className={`tab-btn ${tab === 'attendance' ? 'active' : ''}`} onClick={() => setTab('attendance')}>Mark Attendance</button>
         <button className={`tab-btn ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Enter Results</button>
         <button className={`tab-btn ${tab === 'fees' ? 'active' : ''}`} onClick={() => setTab('fees')}>Fee Status</button>
+        <button className={`tab-btn ${tab === 'manage' ? 'active' : ''}`} onClick={() => setTab('manage')}>Manage</button>
         <button className={`tab-btn ${tab === 'register' ? 'active' : ''}`} onClick={() => setTab('register')}>Register Student</button>
       </div>
       {tab === 'register' && <AddStudentForm onAdded={loadRoster} />}
@@ -31,6 +33,7 @@ export default function TeacherDashboard() {
       {tab === 'attendance' && !!roster.length && <AttendanceTab roster={roster} />}
       {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
       {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
+      {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
     </div>
   );
 }
@@ -186,5 +189,44 @@ function FeesTab({ roster }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ManageTab({ roster }) {
+  const [resetStudent, setResetStudent] = useState(null);
+
+  return (
+    <>
+      <div className="card">
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>Manage students</div>
+        <table>
+          <thead><tr><th>Student</th><th>Category</th><th>Actions</th></tr></thead>
+          <tbody>
+            {roster.map((s) => (
+              <tr key={s.id}>
+                <td>{s.full_name}</td>
+                <td>{s.category || '—'}</td>
+                <td>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setResetStudent(s)}
+                    style={{ fontSize: 11 }}
+                  >
+                    Reset password
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {resetStudent && (
+        <ResetStudentPassword
+          studentId={resetStudent.id}
+          studentName={resetStudent.full_name}
+          onClose={() => setResetStudent(null)}
+        />
+      )}
+    </>
   );
 }
