@@ -20,7 +20,8 @@ async function main() {
     process.exit(1);
   }
 
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const ws = require('ws');
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { realtime: { transport: ws } });
   const password_hash = await bcrypt.hash(password, 10);
 
   const { error } = await supabase.from('users').insert({
