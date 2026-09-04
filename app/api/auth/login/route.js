@@ -23,6 +23,11 @@ export async function POST(request) {
     .ilike(column, identifier.trim())
     .maybeSingle();
 
+  // --- TEMP DEBUG LOGGING (remove after diagnosis) ---
+  console.log('[login-debug] role:', role, '| identifier:', identifier);
+  console.log('[login-debug] Supabase query result →', JSON.stringify({ data: user, error }));
+  // --- END TEMP DEBUG LOGGING ---
+
   if (error || !user) {
     return NextResponse.json(
       { error: role === 'student' ? 'No student found with that name.' : 'Incorrect username or password.' },
