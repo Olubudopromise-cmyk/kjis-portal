@@ -64,9 +64,68 @@ function CountUp({ end, suffix = '', duration = 1800 }) {
   return <span className="mono" ref={ref}>{value}{suffix}</span>;
 }
 
+/* ─── Video player (placeholder state; swap src for real video) ─────── */
+function VideoPlayer() {
+  // TODO: drop in a real src below (local video file or YouTube embed) with a one-line change.
+  const VIDEO_SRC = null; // e.g. '/videos/school-tour.mp4'  or  'https://youtu.be/XXXXX'
+  const isYoutube = typeof VIDEO_SRC === 'string' && VIDEO_SRC.includes('youtu');
+
+  if (isYoutube) {
+    return (
+      <div className="hp-video-player">
+        <div className="hp-video-bg" />
+        <iframe
+          src={`https://www.youtube.com/embed/${VIDEO_SRC.split('v=')[1] || VIDEO_SRC.split('/').pop()}`}
+          className="hp-video-src"
+          title="School tour video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  if (VIDEO_SRC) {
+    return (
+      <div className="hp-video-player">
+        <div className="hp-video-bg" />
+        <video className="hp-video-src" src={VIDEO_SRC} controls autoPlay muted loop playsInline />
+      </div>
+    );
+  }
+
+  return (
+    <div className="hp-video-player" role="button" aria-label="Play school tour video (coming soon)">
+      <div className="hp-video-bg" />
+      <div className="hp-video-overlay">
+        <button className="hp-video-play-btn" aria-hidden="true">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z" /></svg>
+        </button>
+        <span className="hp-video-label">School tour video coming soon</span>
+        <span className="hp-video-sub">We're preparing a walkthrough of our campus and facilities.</span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main homepage component ──────────────────────────────────────── */
 export default function HomePage() {
   const [scrolled, setScrolled] = useState(false);
+
+  // Testimonials data — TODO: replace with real parent/student testimonials once collected — do not display fake names/quotes to real visitors.
+  const TESTIMONIALS = [
+    { id: 't1', placeholder: true },
+    { id: 't2', placeholder: true },
+    { id: 't3', placeholder: true },
+  ];
+
+  // Student life gallery — abstract/illustrated icons (no real or AI-generated people photos).
+  const GALLERY = [
+    { id: 'gl1', icon: '📖', title: 'Academics', desc: 'Structured lessons, small class sizes, and a curriculum that stretches every student.' },
+    { id: 'gl2', icon: '🏆', title: 'Sports', desc: 'Inter-house competitions, athletics, and team sports that build discipline and teamwork.' },
+    { id: 'gl3', icon: '🎨', title: 'Arts & Culture', desc: 'Drawing, music, drama, and creative projects that give every child a voice.' },
+    { id: 'gl4', icon: '🔬', title: 'Science & Tech', desc: 'Hands-on experiments, computer literacy, and a curiosity-driven approach to discovery.' },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -78,8 +137,41 @@ export default function HomePage() {
     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // ── Blob parallax (background moves slightly slower than foreground) ──
+  const heroRef = useRef(null);
+  const blobRef = useRef(null);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (heroRef.current && blobRef.current) {
+        const rect = heroRef.current.getBoundingClientRect();
+        const progress = Math.max(0, Math.min(1, (-rect.top) / (rect.height + 80)));
+        blobRef.current.style.transform = `translateY(${progress * 28}px)`;
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <div className="hp">
+      {/* ─── MARQUEE ─── */}
+      <div className="hp-marquee" aria-label="Highlights">
+        <div className="hp-marquee__track">
+          {[...Array(2)].map((_, ri) => (
+            <span className="hp-marquee__item" key={ri}>
+              <span>Government Approved</span><span className="dot" />
+              <span>Excellence Through Discipline</span><span className="dot" />
+              <span>Science</span><span className="dot" />
+              <span>Art</span><span className="dot" />
+              <span>Commercial</span><span className="dot" />
+              <span>Digital Report Cards</span><span className="dot" />
+              <span>AI Study Support</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* ─── NAV ─── */}
       <nav className={`hp-nav ${scrolled ? 'hp-nav--scrolled' : ''}`}>
         <div className="hp-nav__inner">
@@ -92,8 +184,8 @@ export default function HomePage() {
       </nav>
 
       {/* ─── HERO ─── */}
-      <section className="hp-hero">
-        <div className="hp-hero__bg">
+      <section className="hp-hero" ref={heroRef}>
+        <div className="hp-hero__bg" ref={blobRef}>
           <div className="blob blob--1" />
           <div className="blob blob--2" />
           <div className="blob blob--3" />
@@ -195,6 +287,73 @@ export default function HomePage() {
                 </div>
               </Reveal>
             ))}
+          </div>      </div>
+    </section>
+
+      {/* ─── TESTIMONIALS ─── */}
+      <section className="hp-testimonials">
+        <div className="hp-section__inner">
+          <Reveal>
+            <span className="hp-section__tag">What Parents Say</span>
+            <h2 className="hp-section__title">Parent & Student Testimonials</h2>
+            <p className="hp-section__desc">
+              Hear from families who trust King James International School for their children's education.
+            </p>
+          </Reveal>
+          {/* TODO: replace with real parent/student testimonials once collected — do not display fake names/quotes to real visitors. */}
+          <div className="hp-testimonials__grid">
+            {TESTIMONIALS.map((t, i) => (
+              <Reveal key={t.id} delay={i * 110}>
+                {t.placeholder ? (
+                  <div className="hp-testimonial-card hp-testimonial-card--placeholder">
+                    <div className="hp-testimonial-card__mark">&ldquo;&rdquo;</div>
+                    <p className="hp-testimonial-card__quote">Testimonial coming soon</p>
+                    <div className="hp-testimonial-card__author">
+                      <div className="hp-testimonial-avatar is-placeholder">+</div>
+                      <div>
+                        <div className="hp-testimonial-name">Placeholder</div>
+                        <div className="hp-testimonial-role">Awaiting real testimonial</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="hp-testimonial-card">
+                    <div className="hp-testimonial-card__mark">&ldquo;</div>
+                    <p className="hp-testimonial-card__quote">{t.quote}</p>
+                    <div className="hp-testimonial-card__author">
+                      <div className="hp-testimonial-avatar">{t.avatar}</div>
+                      <div>
+                        <div className="hp-testimonial-name">{t.name}</div>
+                        <div className="hp-testimonial-role">{t.role}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Reveal>
+            ))}
+          </div>      </div>
+    </section>
+
+      {/* ─── STUDENT LIFE / GALLERY ─── */}
+      <section className="hp-gallery">
+        <div className="hp-section__inner">
+          <Reveal>
+            <span className="hp-section__tag hp-section__tag--light">Student Life</span>
+            <h2 className="hp-section__title hp-section__title--light">A Well-Rounded Education</h2>
+            <p className="hp-section__desc hp-section__desc--light">
+              From academics to sports and the arts — every student finds their place here.
+            </p>
+          </Reveal>
+          <div className="hp-gallery__grid">
+            {GALLERY.map((g, i) => (
+              <Reveal key={g.id} delay={i * 90}>
+                <div className="hp-gallery-card">
+                  <span className="hp-gallery-icon" aria-hidden="true">{g.icon}</span>
+                  <h4>{g.title}</h4>
+                  <p>{g.desc}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
@@ -225,6 +384,23 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── VIDEO TOUR ─── */}
+      <section className="hp-video">
+        <div className="hp-section__inner">
+          <Reveal>
+            <span className="hp-section__tag">Take a Look</span>
+            <h2 className="hp-section__title">School Tour Video</h2>
+            <p className="hp-section__desc">
+              A quick walkthrough of our campus, classrooms, and facilities.
+            </p>
+          </Reveal>
+          <Reveal delay={120}>
+            {/* TODO: drop in a real src below (local video file or YouTube embed) with a one-line change. */}
+            <VideoPlayer />
+          </Reveal>
+        </div>
+      </section>
+
       {/* ─── FOOTER ─── */}
       <footer className="hp-footer">
         <div className="hp-footer__inner">
@@ -236,10 +412,23 @@ export default function HomePage() {
                 No. 10/12 Anuoluwapo Street, Off Ajegunle Road, Atan/Ota, Ogun State, Nigeria
               </div>
             </div>
-          </div>
-          <div className="hp-footer__right">
+          </div>            <div className="hp-footer__right">
             <span>© {new Date().getFullYear()} King James International School</span>
             <span className="hp-footer__gov">Government Approved Institution</span>
+          </div>
+          <div className="hp-footer__contact">
+            <a href="tel:+2349117303462" className="hp-footer__contact-item">
+              <span className="hp-footer__contact-label">Phone</span>
+              <span className="hp-footer__contact-phone">+234 911 730 3462</span>
+            </a>
+            <a href="tel:+2347015233385" className="hp-footer__contact-item">
+              <span className="hp-footer__contact-label">Phone</span>
+              <span className="hp-footer__contact-phone">+234 701 523 3385</span>
+            </a>
+            <a href="mailto:kingjamesschools@proton.me" className="hp-footer__contact-item">
+              <span className="hp-footer__contact-label">Email</span>
+              <span className="hp-footer__contact-email">kingjamesschools@proton.me</span>
+            </a>
           </div>
         </div>
       </footer>
