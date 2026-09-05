@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import AddStudentForm from './AddStudentForm';
 import ResetStudentPassword from '../../components/ResetStudentPassword';
 
 function todayStr() {
@@ -26,10 +25,8 @@ export default function TeacherDashboard() {
         <button className={`tab-btn ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Enter Results</button>
         <button className={`tab-btn ${tab === 'fees' ? 'active' : ''}`} onClick={() => setTab('fees')}>Fee Status</button>
         <button className={`tab-btn ${tab === 'manage' ? 'active' : ''}`} onClick={() => setTab('manage')}>Manage</button>
-        <button className={`tab-btn ${tab === 'register' ? 'active' : ''}`} onClick={() => setTab('register')}>Register Student</button>
       </div>
-      {tab === 'register' && <AddStudentForm onAdded={loadRoster} />}
-      {tab !== 'register' && !roster.length && <div className="card empty-note">No students are assigned to your class yet — add your first one under "Register Student."</div>}
+      {!roster.length && <div className="card empty-note">No students are assigned to your class yet.</div>}
       {tab === 'attendance' && !!roster.length && <AttendanceTab roster={roster} />}
       {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
       {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}

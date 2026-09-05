@@ -33,12 +33,10 @@ export async function GET(request) {
   return NextResponse.json({ students: data });
 }
 
-// Admin or a teacher registering their own class can create a student —
-// this is the server-side version of "teacher writes the student's name in
-// before the student ever logs in".
+// Admin only — student registration is no longer open to teachers.
 export async function POST(request) {
   const session = await getSession();
-  if (!session || !['admin', 'teacher'].includes(session.role)) {
+  if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
 
@@ -49,15 +47,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Full name and password are required.' }, { status: 400 });
   }
 
-  // Teachers can only add students into their own class.
   let effectiveClassId = classId || null;
-  if (session.role === 'teacher') {
-    const { data: teacher } = await supabaseAdmin.from('users').select('class_id').eq('id', session.id).single();
-    if (!teacher?.class_id) {
-      return NextResponse.json({ error: 'You are not assigned to a class yet — ask the administrator to assign you one first.' }, { status: 400 });
-    }
-    effectiveClassId = teacher.class_id;
-  }
 
   const { data: existing } = await supabaseAdmin
     .from('users')
