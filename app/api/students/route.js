@@ -23,7 +23,7 @@ export async function GET(request) {
 
   let query = supabaseAdmin
     .from('users')
-    .select('id, full_name, class_id, category, total_fee, paid, admission_no')
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
     .eq('role', 'student')
     .order('full_name');
   if (classId) query = query.eq('class_id', classId);
@@ -41,7 +41,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { fullName, password, classId, category, totalFee, admissionNo, facePhotoBase64 } = body;
+  const { fullName, password, classId, category, totalFee, admissionNo, faceConsent, facePhotoBase64 } = body;
 
   if (!fullName || !password) {
     return NextResponse.json({ error: 'Full name and password are required.' }, { status: 400 });
@@ -75,6 +75,7 @@ export async function POST(request) {
       total_fee: totalFee || 0,
       paid: 0,
       admission_no: admissionNo || null,
+      face_consent: faceConsent === true,
     })
     .select('id, full_name, class_id, category, total_fee, paid, admission_no, face_photo_url')
     .single();
@@ -83,8 +84,10 @@ export async function POST(request) {
 
   // Optional reference photo, used later at login for face verification
   // (see /api/auth/face-verify). Stored in a private Supabase Storage
-  // bucket — never made public.
-  if (facePhotoBase64) {
+  // bucket — never made public. Stored ONLY when the admin ticked the
+  // guardian-consent box (NDPR); a photo sent without consent is dropped
+  // silently and registration continues without it.
+  if (faceConsent === true && facePhotoBase64) {
     try {
       const base64Data = facePhotoBase64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
@@ -102,6 +105,57 @@ export async function POST(request) {
     }
   }
 
+  return NextResponse.json({ ok: true, student: data });
+}
+
+// Admin only — edit a student's details and/or deactivate/reactivate them.
+// Only the fields present in the request body are updated. `active: false`
+// blocks login (see /api/auth/login) but keeps the row and its history.
+export async function PATCH(request) {
+  const session = await getSession();
+  if (!session || session.role !== 'admin') {
+    return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { studentId, fullName, classId, category, totalFee, admissionNo, active } = body;
+
+  if (!studentId) {
+    return NextResponse.json({ error: 'Missing student ID.' }, { status: 400 });
+  }
+
+  const updates = {};
+  if (fullName !== undefined) {
+    if (typeof fullName !== 'string' || !fullName.trim()) {
+      return NextResponse.json({ error: 'Full name cannot be empty.' }, { status: 400 });
+    }
+    updates.full_name = fullName.trim();
+  }
+  if (classId !== undefined) updates.class_id = classId || null;
+  if (category !== undefined) updates.category = category || null;
+  if (totalFee !== undefined) updates.total_fee = Number(totalFee) || 0;
+  if (admissionNo !== undefined) updates.admission_no = admissionNo || null;
+  if (active !== undefined) {
+    if (typeof active !== 'boolean') {
+      return NextResponse.json({ error: '"active" must be true or false.' }, { status: 400 });
+    }
+    updates.active = active;
+  }
+
+  if (!Object.keys(updates).length) {
+    return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .update(updates)
+    .eq('id', studentId)
+    .eq('role', 'student')
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   return NextResponse.json({ ok: true, student: data });
 }
 

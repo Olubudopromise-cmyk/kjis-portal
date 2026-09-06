@@ -34,6 +34,7 @@ export default async function AdminPage() {
         <div className="page-head"><h2>Admin Desk</h2></div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+          <Link href="/admin/classes" className="btn btn-ghost btn-sm">Classes</Link>
           <Link href="/admin/subjects" className="btn btn-ghost btn-sm">Categories &amp; Subjects</Link>
           <Link href="/admin/teachers" className="btn btn-ghost btn-sm">Teachers</Link>
           <Link href="/admin/timetable" className="btn btn-ghost btn-sm">Timetable</Link>
@@ -50,7 +51,7 @@ export default async function AdminPage() {
 
         <AddStudentForm classes={classes || []} />
 
-        <StudentTable students={students || []} />
+        <StudentTable students={students || []} classes={classes || []} />
       </main>
     </div>
   );

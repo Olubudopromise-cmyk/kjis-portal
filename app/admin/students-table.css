@@ -1,0 +1,15 @@
+/* Deactivated student rows in the admin table — muted with a small tag. */
+.row-inactive td { color: var(--muted); }
+.tag-inactive {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  vertical-align: middle;
+}

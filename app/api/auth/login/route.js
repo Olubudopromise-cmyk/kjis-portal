@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import supabaseAdmin from '../../../../lib/db';
 import { verifyPassword } from '../../../../lib/password';
 import { createSessionToken, createFaceToken, SESSION_COOKIE } from '../../../../lib/auth';
+import { rateLimitKey, isRateLimited, recordFailedAttempt, clearRateLimit } from '../../../../lib/rate-limit';
 
 export async function POST(request) {
   const { role, identifier, password } = await request.json();
@@ -13,22 +14,33 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid role.' }, { status: 400 });
   }
 
+  // Fixed-window brute-force guard: 5 failed attempts per 15 minutes per
+  // role+identifier. Checked before touching credentials; a successful login
+  // clears the key so typos don't punish legitimate users.
+  const rlKey = rateLimitKey(`login:${role}`, identifier);
+  if (await isRateLimited(rlKey)) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please try again in a few minutes.' },
+      { status: 429 }
+    );
+  }
+
   // Students log in by their registered full name; staff log in by username.
   const column = role === 'student' ? 'full_name' : 'username';
 
+  // `active` is null for pre-migration rows and true/false afterwards — only
+  // an explicit false blocks login. Deactivated students get the same "not
+  // found" message as an unknown name so the account's existence never leaks.
   const { data: user, error } = await supabaseAdmin
     .from('users')
     .select('*')
     .eq('role', role)
+    .neq('active', false)
     .ilike(column, identifier.trim())
     .maybeSingle();
 
-  // --- TEMP DEBUG LOGGING (remove after diagnosis) ---
-  console.log('[login-debug] role:', role, '| identifier:', identifier);
-  console.log('[login-debug] Supabase query result →', JSON.stringify({ data: user, error }));
-  // --- END TEMP DEBUG LOGGING ---
-
   if (error || !user) {
+    await recordFailedAttempt(rlKey);
     return NextResponse.json(
       { error: role === 'student' ? 'No student found with that name.' : 'Incorrect username or password.' },
       { status: 401 }
@@ -37,8 +49,11 @@ export async function POST(request) {
 
   const ok = await verifyPassword(password, user.password_hash);
   if (!ok) {
+    await recordFailedAttempt(rlKey);
     return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 });
   }
+
+  await clearRateLimit(rlKey);
 
   // If this student has a reference photo on file, credentials alone aren't
   // enough — send them to the face-check step instead of logging in yet.

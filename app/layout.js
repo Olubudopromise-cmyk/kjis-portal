@@ -1,4 +1,5 @@
 import './globals.css';
+import './admin/students-table.css';
 
 export const metadata = {
   title: 'King James International School — Portal',

@@ -23,6 +23,7 @@ export default function AddStudentForm({ classes }) {
   const [category, setCategory] = useState('');
   const [totalFee, setTotalFee] = useState('');
   const [admissionNo, setAdmissionNo] = useState('');
+  const [faceConsent, setFaceConsent] = useState(false);
   const [facePhoto, setFacePhoto] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,13 +37,14 @@ export default function AddStudentForm({ classes }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fullName, password, classId: classId || null, category: category || null,
-        totalFee: totalFee ? Number(totalFee) : 0, admissionNo, facePhotoBase64: facePhoto,
+        totalFee: totalFee ? Number(totalFee) : 0, admissionNo,
+        faceConsent, facePhotoBase64: faceConsent ? facePhoto : null,
       }),
     });
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setError(data.error || 'Could not add student.'); return; }
-    setFullName(''); setPassword(''); setClassId(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFacePhoto(null);
+    setFullName(''); setPassword(''); setClassId(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFaceConsent(false); setFacePhoto(null);
     router.refresh();
   }
 
@@ -89,7 +91,24 @@ export default function AddStudentForm({ classes }) {
           <input type="number" min="0" value={totalFee} onChange={(e) => setTotalFee(e.target.value)} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <FaceCapture label="Reference photo (optional — enables face verification at login)" onCapture={setFacePhoto} />
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.45, marginBottom: 10, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={faceConsent}
+              onChange={(e) => {
+                setFaceConsent(e.target.checked);
+                if (!e.target.checked) setFacePhoto(null);
+              }}
+              style={{ marginTop: 3 }}
+              required
+            />
+            <span>
+              I confirm the parent or guardian has given consent to store this student's photo for face verification (required under Nigeria's NDPR).
+            </span>
+          </label>
+          {faceConsent && (
+            <FaceCapture label="Reference photo (optional — enables face verification at login)" onCapture={setFacePhoto} />
+          )}
         </div>
         <button className="btn btn-gold" style={{ gridColumn: '1 / -1' }} disabled={loading}>
           {loading ? 'Adding…' : 'Add student'}

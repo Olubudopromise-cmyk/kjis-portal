@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import supabaseAdmin from '../../../../lib/db';
+import { rateLimitKey, isRateLimited, recordFailedAttempt, clearRateLimit } from '../../../../lib/rate-limit';
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -16,6 +17,16 @@ export async function POST(request) {
   // Always return the same message to avoid leaking which emails exist.
   const SAFE_MESSAGE = 'If that email is registered, you\'ll receive a reset link shortly.';
 
+  // Same fixed-window guard as login: 5 failed lookups per 15 minutes per
+  // email address, so this endpoint can't be used to flood reset emails.
+  const rlKey = rateLimitKey('forgot', email);
+  if (await isRateLimited(rlKey)) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please try again in a few minutes.' },
+      { status: 429 }
+    );
+  }
+
   // Look up the user by email — only teachers and admins can self-reset.
   const { data: user } = await supabaseAdmin
     .from('users')
@@ -26,8 +37,11 @@ export async function POST(request) {
 
   if (!user) {
     // Return 200 with the same safe message — don't reveal whether the email exists.
+    await recordFailedAttempt(rlKey);
     return NextResponse.json({ ok: true, message: SAFE_MESSAGE });
   }
+
+  await clearRateLimit(rlKey);
 
   // Invalidate any previously unused tokens for this user.
   await supabaseAdmin
