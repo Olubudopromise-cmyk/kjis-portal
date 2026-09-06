@@ -1,9 +1,25 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ResetStudentPassword from '../../components/ResetStudentPassword';
 
 const CATEGORIES = ['Science', 'Art', 'Commercial'];
+
+const CHANGE_LABELS = {
+  fullName: 'Name',
+  classId: 'Class',
+  category: 'Category',
+  totalFee: 'Term fee',
+  admissionNo: 'Admission No.',
+  active: 'Status',
+};
+
+function formatChangeValue(field, value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (field === 'active') return value === true ? 'Active' : 'Inactive';
+  if (field === 'totalFee') return `₦${Number(value).toLocaleString()}`;
+  return String(value);
+}
 
 function EditStudentForm({ student, classes, onDone, onCancel }) {
   const router = useRouter();
@@ -12,8 +28,21 @@ function EditStudentForm({ student, classes, onDone, onCancel }) {
   const [category, setCategory] = useState(student.category || '');
   const [totalFee, setTotalFee] = useState(student.total_fee ?? '');
   const [admissionNo, setAdmissionNo] = useState(student.admission_no || '');
+  const [edits, setEdits] = useState(null);
+  const [editsLoading, setEditsLoading] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Latest first, so the admin sees the most recent changes at a glance.
+  function loadEdits() {
+    setEditsLoading(true);
+    fetch(`/api/students/edits?studentId=${student.id}`)
+      .then((r) => r.json())
+      .then((d) => setEdits(d.edits || []))
+      .catch(() => setEdits([]))
+      .finally(() => setEditsLoading(false));
+  }
+  useEffect(loadEdits, [student.id]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -39,6 +68,8 @@ function EditStudentForm({ student, classes, onDone, onCancel }) {
     }
     onDone();
   }
+
+  const classNameById = Object.fromEntries(classes.map((c) => [c.id, c.name]));
 
   return (
     <tr className="edit-row">
@@ -78,6 +109,30 @@ function EditStudentForm({ student, classes, onDone, onCancel }) {
             <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
           </div>
         </form>
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>
+            Recent changes
+          </div>
+          {editsLoading ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>
+          ) : !edits?.length ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>No recorded changes yet.</div>
+          ) : (
+            edits.map((e) => (
+              <div key={e.id} style={{ fontSize: 13, marginBottom: 5 }}>
+                {new Date(e.created_at).toLocaleString()} — {e.editor_name || e.editor_role}:
+                {' '}
+                {Object.entries(e.changes || {}).map(([field, { from, to }], i, arr) => (
+                  <span key={field}>
+                    {i > 0 && '; '}
+                    <strong>{CHANGE_LABELS[field] || field}</strong>
+                    {' '}{formatChangeValue(field, from)} → {formatChangeValue(field, to)}
+                  </span>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
       </td>
     </tr>
   );

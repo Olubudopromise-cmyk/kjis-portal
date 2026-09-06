@@ -124,6 +124,17 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Missing student ID.' }, { status: 400 });
   }
 
+  // Fetch the current row first so the audit entry can record what each
+  // field changed FROM as well as to.
+  const { data: before, error: beforeError } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
+    .eq('id', studentId)
+    .eq('role', 'student')
+    .maybeSingle();
+  if (beforeError) return NextResponse.json({ error: beforeError.message }, { status: 500 });
+  if (!before) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+
   const updates = {};
   if (fullName !== undefined) {
     if (typeof fullName !== 'string' || !fullName.trim()) {
@@ -156,6 +167,41 @@ export async function PATCH(request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+
+  // Record what changed (field → { from, to }) in the audit trail. Only
+  // fields whose value actually differs are listed, so a no-op save (or a
+  // pure toggle to the same state) writes nothing.
+  const COLUMN_BY_FIELD = {
+    fullName: 'full_name',
+    classId: 'class_id',
+    category: 'category',
+    totalFee: 'total_fee',
+    admissionNo: 'admission_no',
+    active: 'active',
+  };
+  const changes = {};
+  for (const [field, column] of Object.entries(COLUMN_BY_FIELD)) {
+    if (!(column in updates)) continue;
+    const beforeVal = before[column] ?? null;
+    const afterVal = data[column] ?? null;
+    if (String(beforeVal) !== String(afterVal)) {
+      changes[field] = { from: beforeVal, to: afterVal };
+    }
+  }
+  if (Object.keys(changes).length) {
+    const { error: auditError } = await supabaseAdmin.from('student_edits').insert({
+      student_id: studentId,
+      editor_id: session.id,
+      editor_role: session.role,
+      editor_name: session.name || null,
+      changes,
+    });
+    if (auditError) {
+      // The edit itself succeeded; log the audit failure but don't fail the request.
+      console.error('Failed to write student edit audit entry:', auditError);
+    }
+  }
+
   return NextResponse.json({ ok: true, student: data });
 }
 

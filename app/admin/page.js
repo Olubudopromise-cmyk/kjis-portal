@@ -13,7 +13,7 @@ export default async function AdminPage() {
   const { data: classes } = await supabaseAdmin.from('classes').select('*').order('name');
   const { data: students } = await supabaseAdmin
     .from('users')
-    .select('id, full_name, class_id, category, total_fee, paid')
+    .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
     .eq('role', 'student')
     .order('created_at', { ascending: false });
   const { data: termRow } = await supabaseAdmin.from('settings').select('value').eq('key', 'current_term').maybeSingle();

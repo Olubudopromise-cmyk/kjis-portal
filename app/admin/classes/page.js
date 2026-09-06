@@ -7,6 +7,7 @@ export default function ClassesAdminPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
 
   function load() {
     fetch('/api/classes')
@@ -36,6 +37,24 @@ export default function ClassesAdminPage() {
     load();
   }
 
+  async function remove(c) {
+    setError('');
+    if (!window.confirm(`Delete class "${c.name}"? Timetable entries for it are removed too. This cannot be undone.`)) return;
+    setRemovingId(c.id);
+    const res = await fetch('/api/classes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: c.id }),
+    });
+    const data = await res.json();
+    setRemovingId(null);
+    if (!res.ok) {
+      setError(data.error || 'Could not delete class.');
+      return;
+    }
+    load();
+  }
+
   return (
     <main>
       <div className="page-head"><h2>Classes</h2></div>
@@ -57,7 +76,17 @@ export default function ClassesAdminPage() {
           <div className="empty-note">No classes added yet.</div>
         ) : (
           classes.map((c) => (
-            <div className="att-row" key={c.id}><div>{c.name}</div></div>
+            <div className="att-row" key={c.id}>
+              <div>{c.name}</div>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ color: 'var(--danger)' }}
+                disabled={removingId === c.id}
+                onClick={() => remove(c)}
+              >
+                {removingId === c.id ? 'Deleting…' : 'Remove'}
+              </button>
+            </div>
           ))
         )}
       </div>
