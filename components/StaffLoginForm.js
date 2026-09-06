@@ -2,7 +2,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
+/**
+ * Shared form for the un-advertised staff login pages (/teacher/login and
+ * /admin/login). Renders identically to the student login card but always
+ * posts a fixed role — the pages themselves carry no role-switching UI and
+ * are deliberately not linked from anywhere in the app.
+ */
+export default function StaffLoginForm({ role, label }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -16,7 +22,7 @@ export default function LoginPage() {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'student', identifier, password }),
+      body: JSON.stringify({ role, identifier, password }),
     });
     const data = await res.json();
     setLoading(false);
@@ -24,13 +30,7 @@ export default function LoginPage() {
       setError(data.error || 'Login failed.');
       return;
     }
-    if (data.pendingFaceCheck) {
-      sessionStorage.setItem('kjis_face_token', data.faceToken);
-      sessionStorage.setItem('kjis_face_name', data.name || '');
-      router.push('/login/face-verify');
-      return;
-    }
-    router.push('/student');
+    router.push('/' + role);
   }
 
   return (
@@ -50,11 +50,11 @@ export default function LoginPage() {
           {error && <div className="error-msg">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label>Full name</label>
+              <label>Username</label>
               <input
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                autoComplete="name"
+                autoComplete="username"
                 required
               />
             </div>
@@ -69,7 +69,7 @@ export default function LoginPage() {
               />
             </div>
             <button className="btn btn-navy" style={{ width: '100%', padding: '12px' }} disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in as Student'}
+              {loading ? 'Signing in…' : `Sign in as ${label}`}
             </button>
           </form>
         </div>

@@ -179,7 +179,7 @@ export default function HomePage() {
             <div className="crest">KJ</div>
             <span className="hp-nav__name">King James International School</span>
           </div>
-          <a href="/login" className="btn btn-gold hp-nav__login">Portal Login</a>
+          <a href="/login" className="btn btn-gold hp-nav__login">Student Login</a>
         </div>
       </nav>
 

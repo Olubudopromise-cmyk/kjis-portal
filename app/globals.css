@@ -35,11 +35,7 @@ main{flex:1;padding:26px 28px 60px;max-width:1180px;margin:0 auto;width:100%;}
 .login-card{width:100%;max-width:960px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(22,35,63,.35);display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);}
 .login-side{background:var(--navy);color:var(--cream);padding:44px 38px;display:flex;flex-direction:column;justify-content:space-between;}
 .login-side h1{font-size:30px;line-height:1.15;margin:22px 0 10px;}
-.login-side p{color:rgba(247,243,232,.72);font-size:14px;max-width:280px;}
-.login-main{padding:40px;}
-.role-tabs{display:flex;gap:6px;margin-bottom:22px;background:var(--cream-dark);padding:5px;border-radius:9px;}
-.role-tab{flex:1;text-align:center;padding:9px 6px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);}
-.role-tab.active{background:var(--navy);color:var(--gold-soft);}
+.login-side p{color:rgba(247,243,232,.72);font-size:14px;max-width:280px;}.login-main{padding:40px;}
 .field{margin-bottom:15px;}
 .field label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
 .field input,.field select{width:100%;padding:11px 12px;border-radius:7px;border:1.5px solid var(--line);font-size:14px;}

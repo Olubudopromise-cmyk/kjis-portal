@@ -8,8 +8,27 @@ function roleForPath(pathname) {
   return null;
 }
 
+// Public, un-advertised staff login pages. They live *inside* the protected
+// prefixes above but must always be reachable — they're the pages that CREATE
+// a session, so gating them would cause a redirect loop.
+function publicStaffLoginPath(pathname) {
+  if (pathname === '/teacher/login') return true;
+  if (pathname === '/admin/login') return true;
+  return false;
+}
+
+// Where to send someone who hit a protected page without the right session.
+// Students share /login; staff go to their own role-scoped login page.
+function loginPathForRole(role) {
+  if (role === 'teacher') return '/teacher/login';
+  if (role === 'admin') return '/admin/login';
+  return '/login';
+}
+
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  if (publicStaffLoginPath(pathname)) return NextResponse.next();
+
   const requiredRole = roleForPath(pathname);
   if (!requiredRole) return NextResponse.next();
 
@@ -17,7 +36,7 @@ export async function middleware(request) {
   const session = token ? await verifySessionToken(token) : null;
 
   if (!session || session.role !== requiredRole) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL(loginPathForRole(requiredRole), request.url));
   }
   return NextResponse.next();
 }
