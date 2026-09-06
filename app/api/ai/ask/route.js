@@ -47,6 +47,7 @@ Keep answers focused and appropriately short for a chat window. Politely decline
   });
 
   if (!res.ok) {
+    console.log('Anthropic API error:', res.status, await res.text());
     return NextResponse.json({ error: "The AI tutor couldn't respond just now. Please try again." }, { status: 502 });
   }
   const data = await res.json();
