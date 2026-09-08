@@ -9,6 +9,8 @@ export default async function AdminPage() {
   const session = await getSession();
   if (!session) return null;
 
+  const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
+  const { data: classes } = classesResult;
   const { data: students } = await supabaseAdmin
     .from('users')
     .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
@@ -48,9 +50,14 @@ export default async function AdminPage() {
           <div className="card stat-card"><div className="label">Total collected</div><div className="value" style={{ color: 'var(--success)' }}>₦{(students || []).reduce((s, u) => s + (u.paid || 0), 0).toLocaleString()}</div></div>
         </div>
 
-        <AddStudentForm classes={classes || []} />
-
-        <StudentTable students={students || []} classes={Array.isArray(classes) ? classes : []} />
+        {Array.isArray(classes) ? (
+          <>
+            <AddStudentForm classes={classes} />
+            <StudentTable students={students || []} classes={classes} />
+          </>
+        ) : (
+          <div className="card empty-note" style={{ marginTop: 20 }}>No classes configured yet.</div>
+        )}
       </main>
     </div>
   );
