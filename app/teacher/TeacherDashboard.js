@@ -93,6 +93,11 @@ function ResultsTab({ roster }) {
   const [term, setTerm] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [assessments, setAssessments] = useState({});
+  const [newLabel, setNewLabel] = useState('');
+  const [newScore, setNewScore] = useState('');
+  const [newMaxScore, setNewMaxScore] = useState('100');
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings').then((r) => r.json()).then((d) => setTerm(d.settings?.current_term || ''));
@@ -107,7 +112,12 @@ function ResultsTab({ roster }) {
       (d.results || []).forEach((r) => { m[r.subject] = { ca: r.ca ?? '', exam: r.exam ?? '' }; });
       setScores(m);
     });
-  }, [studentId, student]);
+    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
+      const m = {};
+      (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
+      setAssessments(m);
+    });
+  }, [studentId, student, term]);
 
   async function save() {
     setSaving(true);
@@ -128,6 +138,48 @@ function ResultsTab({ roster }) {
     setSaving(false);
     setSaved(true);
   }
+
+  async function addAssessment(e) {
+    e.preventDefault();
+    if (!newLabel.trim() || newScore === '' || newMaxScore === '') return;
+    setAdding(true);
+    await fetch('/api/assessments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId,
+        subject: selectedSubject,
+        term,
+        label: newLabel.trim(),
+        score: Number(newScore),
+        maxScore: Number(newMaxScore),
+      }),
+    });
+    setAdding(false);
+    setNewLabel('');
+    setNewScore('');
+    setNewMaxScore('100');
+    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
+      const m = {};
+      (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
+      setAssessments(m);
+    });
+  }
+
+  async function removeAssessment(id) {
+    await fetch('/api/assessments', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, studentId }),
+    });
+    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
+      const m = {};
+      (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
+      setAssessments(m);
+    });
+  }
+
+  let selectedSubject = subjects[0] || '';
 
   return (
     <div className="card">
@@ -159,6 +211,74 @@ function ResultsTab({ roster }) {
           <button className="btn btn-navy" style={{ marginTop: 12 }} onClick={save} disabled={saving}>
             {saving ? 'Saving…' : saved ? 'Saved ✓' : `Save results for ${student.full_name.split(' ')[0]}`}
           </button>
+
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Recorded Tests &amp; Exams</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <select
+                value={selectedSubject}
+                onChange={(e) => { setSelectedSubject(e.target.value); setNewLabel(''); setNewScore(''); setNewMaxScore('100'); }}
+                style={{ padding: '7px 10px', border: '1.5px solid var(--line)', borderRadius: 7 }}
+              >
+                {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <input
+                className="score-input"
+                type="text"
+                placeholder="Label e.g. Test 1"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                style={{ maxWidth: 140 }}
+              />
+              <input
+                className="score-input"
+                type="number"
+                placeholder="Score"
+                value={newScore}
+                onChange={(e) => setNewScore(e.target.value)}
+                min="0"
+                style={{ maxWidth: 90 }}
+              />
+              <input
+                className="score-input"
+                type="number"
+                placeholder="Max"
+                value={newMaxScore}
+                onChange={(e) => setNewMaxScore(e.target.value)}
+                min="1"
+                style={{ maxWidth: 80 }}
+              />
+              <button className="btn btn-gold btn-sm" onClick={addAssessment} disabled={adding}>
+                {adding ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+
+            {subjects.map((subject) => {
+              const list = (assessments[subject] || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+              if (!list.length) return null;
+              return (
+                <div key={subject} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6, color: 'var(--muted)' }}>{subject}</div>
+                  <table>
+                    <thead><tr><th>Label</th><th>Score</th><th>Max</th><th>Recorded</th><th></th></tr></thead>
+                    <tbody>
+                      {list.map((a) => (
+                        <tr key={a.id}>
+                          <td>{a.label}</td>
+                          <td className="mono">{Number(a.score)} / {Number(a.max_score)}</td>
+                          <td className="mono">{new Date(a.created_at).toLocaleDateString()}</td>
+                          <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)', fontSize: 11 }} onClick={() => removeAssessment(a.id)}>Delete</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+            {!Object.values(assessments).flat().length && (
+              <div className="empty-note">No tests or exams recorded yet for this student.</div>
+            )}
+          </div>
         </>
       )}
     </div>

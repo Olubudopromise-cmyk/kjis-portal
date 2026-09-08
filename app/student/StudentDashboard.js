@@ -171,6 +171,7 @@ function ReportCardView({ studentId, category }) {
   const [term, setTerm] = useState('');
   const [rank, setRank] = useState(null);
   const [outOf, setOutOf] = useState(null);
+  const [assessments, setAssessments] = useState({});
 
   useEffect(() => {
     fetch(`/api/results?studentId=${studentId}&listTerms=true`).then((r) => r.json()).then((d) => {
@@ -192,6 +193,11 @@ function ReportCardView({ studentId, category }) {
       setResults(m);
       setRank(d.rank ?? null);
       setOutOf(d.outOf ?? null);
+    });
+    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
+      const m = {};
+      (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
+      setAssessments(m);
     });
   }, [studentId, term]);
 
@@ -237,6 +243,38 @@ function ReportCardView({ studentId, category }) {
         <div className="card stat-card"><div className="label">Subjects scored</div><div className="value">{scored.length}/{rows.length}</div></div>
         <div className="card stat-card"><div className="label">Average</div><div className="value">{avg != null ? avg + '%' : '—'}</div></div>
         <div className="card stat-card"><div className="label">Overall grade</div><div className="value">{avg != null ? gradeFor(avg) : '—'}</div></div>
+      </div>
+      {rank != null && outOf != null && (
+        <div className="card notice" style={{ marginTop: 12, background: 'rgba(184, 143, 20, 0.06)', border: '1.5px solid var(--gold)' }}>
+          Class Position: {rank}th out of {outOf}
+        </div>
+      )}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>Test &amp; Exam History</div>
+        {subjects.map((s) => {
+          const hist = (assessments[s] || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          if (!hist.length) return null;
+          return (
+            <div key={s} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6, color: 'var(--muted)' }}>{s}</div>
+              <table>
+                <thead><tr><th>Label</th><th>Score</th><th>Recorded</th></tr></thead>
+                <tbody>
+                  {hist.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.label}</td>
+                      <td className="mono">{Number(a.score)} / {Number(a.max_score)}</td>
+                      <td className="mono">{new Date(a.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+        {!Object.values(assessments).flat().length && (
+          <div className="empty-note">No tests or exams recorded yet for your subjects.</div>
+        )}
       </div>
       {rank != null && outOf != null && (
         <div className="card notice" style={{ marginTop: 12, background: 'rgba(184, 143, 20, 0.06)', border: '1.5px solid var(--gold)' }}>
