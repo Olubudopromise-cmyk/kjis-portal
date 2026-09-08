@@ -331,8 +331,14 @@ function AiTutorView() {
 
 function NoticesView() {
   const [list, setList] = useState(null);
-  useEffect(() => { fetch('/api/announcements').then((r) => r.json()).then((d) => setList(d.announcements || [])); }, []);
-  if (list === null) return <div className="card empty-note">Loading…</div>;
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    fetch('/api/announcements').then((r) => r.json()).then((d) => {
+      setList(d.announcements || []);
+      setLoaded(true);
+    });
+  }, []);
+  if (!loaded) return <div className="card empty-note">Loading…</div>;
   return (
     <div className="card">
       {!list.length ? <div className="empty-note">No notices yet.</div> : list.map((a) => (
