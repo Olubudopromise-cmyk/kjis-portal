@@ -39,6 +39,7 @@ export async function POST(request) {
       amount: Math.round(amount * 100), // Paystack expects kobo
       reference,
       metadata: { student_id: student.id },
+      callback_url: `${new URL(request.url).origin}/student?paid=1`,
     }),
   });
   const data = await paystackRes.json();

@@ -38,6 +38,7 @@ export default async function AdminPage() {
           <Link href="/admin/subjects" className="btn btn-ghost btn-sm">Categories &amp; Subjects</Link>
           <Link href="/admin/teachers" className="btn btn-ghost btn-sm">Teachers</Link>
           <Link href="/admin/timetable" className="btn btn-ghost btn-sm">Timetable</Link>
+          <Link href="/admin/attendance" className="btn btn-ghost btn-sm">Attendance</Link>
           <Link href="/admin/announcements" className="btn btn-ghost btn-sm">Notices</Link>
         </div>
 

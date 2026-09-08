@@ -43,7 +43,51 @@ export async function GET(request) {
     .eq('student_id', studentId)
     .eq('term', term);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ results: data, term });
+
+  let rank = null;
+  let outOf = null;
+  if (session.role === 'student' && session.id === studentId) {
+    const { data: studentRow } = await supabaseAdmin.from('users').select('class_id').eq('id', studentId).single();
+    if (studentRow?.class_id) {
+      const { data: classmates } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('class_id', studentRow.class_id)
+        .eq('active', true);
+
+      const classmateIds = (classmates || []).map((c) => c.id);
+      const resultsMap = {};
+      if (classmateIds.length) {
+        const { data: allResults } = await supabaseAdmin
+          .from('results')
+          .select('student_id, ca, exam, subject')
+          .eq('term', term)
+          .in('student_id', classmateIds);
+        if (allResults) {
+          for (const r of allResults) {
+            if (r.ca == null || r.exam == null) continue;
+            if (!resultsMap[r.student_id]) resultsMap[r.student_id] = [];
+            resultsMap[r.student_id].push(r);
+          }
+        }
+      }
+
+      const averages = [];
+      for (const [id, rows] of Object.entries(resultsMap)) {
+        if (!rows.length) continue;
+        const avg = Math.round(rows.reduce((acc, r) => acc + Number(r.ca) + Number(r.exam), 0) / rows.length);
+        averages.push({ id, avg });
+      }
+      averages.sort((a, b) => b.avg - a.avg);
+      const idx = averages.findIndex((a) => a.id === studentId);
+      if (idx !== -1) {
+        rank = idx + 1;
+        outOf = averages.length;
+      }
+    }
+  }
+
+  return NextResponse.json({ results: data, term, rank, outOf });
 }
 
 // Teacher saves one subject's CA/exam score for one of their students.

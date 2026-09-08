@@ -72,6 +72,40 @@ function FeesView({ student, balance }) {
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [paidBanner, setPaidBanner] = useState(null);
+  const [latestPaid, setLatestPaid] = useState(student.paid || 0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paid') !== '1') return;
+
+    let attempts = 0;
+    const maxAttempts = 5;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch('/api/students/me');
+        const data = await res.json();
+        if (data.paid != null && data.paid > latestPaid) {
+          clearInterval(interval);
+          setLatestPaid(data.paid);
+          setPaidBanner('confirmed');
+          const next = window.location.pathname + window.location.search.replace(/[?&]*paid=1[^&]*/g, '').replace(/[?]$/, '');
+          window.history.replaceState({}, '', next);
+        } else if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setPaidBanner('timeout');
+        }
+      } catch {
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setPaidBanner('timeout');
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   async function pay(e) {
     e.preventDefault();
@@ -87,16 +121,31 @@ function FeesView({ student, balance }) {
     window.location.href = data.authorization_url; // hands off to Paystack's real checkout
   }
 
+  let balanceDisplay = balance;
+  if (latestPaid !== student.paid) {
+    balanceDisplay = (student.total_fee || 0) - latestPaid;
+  }
+
   return (
     <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {paidBanner === 'confirmed' && (
+        <div className="card notice" style={{ border: '1.5px solid var(--success)', background: 'rgba(46, 160, 67, 0.06)', color: 'var(--success)' }}>
+          Payment confirmed! Your balance has been updated.
+        </div>
+      )}
+      {paidBanner === 'timeout' && (
+        <div className="card notice" style={{ border: '1.5px solid var(--gold)', background: 'rgba(184, 143, 20, 0.06)' }}>
+          Still confirming — refresh in a moment if this doesn't update.
+        </div>
+      )}
       <div className="card">
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Make a payment</div>
-        {balance <= 0 ? <div className="notice">You have no outstanding balance. 🎉</div> : (
+        {balanceDisplay <= 0 ? <div className="notice">You have no outstanding balance. 🎉</div> : (
           <form onSubmit={pay}>
             {error && <div className="error-msg">{error}</div>}
             <div className="field">
-              <label>Amount (₦, up to ₦{balance.toLocaleString()})</label>
-              <input type="number" min="1" max={balance} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+              <label>Amount (₦, up to ₦{balanceDisplay.toLocaleString()})</label>
+              <input type="number" min="1" max={balanceDisplay} value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </div>
             <button className="btn btn-gold" style={{ width: '100%', padding: 11 }} disabled={loading}>
               {loading ? 'Starting payment…' : 'Pay with Paystack'}
@@ -109,7 +158,7 @@ function FeesView({ student, balance }) {
       </div>
       <div className="card stat-card">
         <div className="label">Current balance</div>
-        <div className="value" style={{ color: balance > 0 ? 'var(--danger)' : 'var(--success)' }}>₦{balance.toLocaleString()}</div>
+        <div className="value" style={{ color: balanceDisplay > 0 ? 'var(--danger)' : 'var(--success)' }}>₦{balanceDisplay.toLocaleString()}</div>
       </div>
     </div>
   );
@@ -120,6 +169,8 @@ function ReportCardView({ studentId, category }) {
   const [results, setResults] = useState({});
   const [terms, setTerms] = useState([]);
   const [term, setTerm] = useState('');
+  const [rank, setRank] = useState(null);
+  const [outOf, setOutOf] = useState(null);
 
   useEffect(() => {
     fetch(`/api/results?studentId=${studentId}&listTerms=true`).then((r) => r.json()).then((d) => {
@@ -139,6 +190,8 @@ function ReportCardView({ studentId, category }) {
       const m = {};
       (d.results || []).forEach((r) => { m[r.subject] = r; });
       setResults(m);
+      setRank(d.rank ?? null);
+      setOutOf(d.outOf ?? null);
     });
   }, [studentId, term]);
 
@@ -185,6 +238,11 @@ function ReportCardView({ studentId, category }) {
         <div className="card stat-card"><div className="label">Average</div><div className="value">{avg != null ? avg + '%' : '—'}</div></div>
         <div className="card stat-card"><div className="label">Overall grade</div><div className="value">{avg != null ? gradeFor(avg) : '—'}</div></div>
       </div>
+      {rank != null && outOf != null && (
+        <div className="card notice" style={{ marginTop: 12, background: 'rgba(184, 143, 20, 0.06)', border: '1.5px solid var(--gold)' }}>
+          Class Position: {rank}th out of {outOf}
+        </div>
+      )}
     </div>
   );
 }
