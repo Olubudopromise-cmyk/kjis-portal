@@ -179,7 +179,7 @@ function ResultsTab({ roster }) {
     });
   }
 
-  let selectedSubject = subjects[0] || '';
+  const [selectedSubject, setSelectedSubject] = useState(subjects[0] || '');
 
   return (
     <div className="card">
@@ -217,7 +217,7 @@ function ResultsTab({ roster }) {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <select
                 value={selectedSubject}
-                onChange={(e) => { setSelectedSubject(e.target.value); setNewLabel(''); setNewScore(''); setNewMaxScore('100'); }}
+                onChange={(e) => { setNewLabel(''); setNewScore(''); setNewMaxScore('100'); }}
                 style={{ padding: '7px 10px', border: '1.5px solid var(--line)', borderRadius: 7 }}
               >
                 {subjects.map((s) => <option key={s} value={s}>{s}</option>)}

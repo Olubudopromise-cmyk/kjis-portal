@@ -5,12 +5,10 @@ import LogoutButton from '../../components/LogoutButton';
 import AddStudentForm from './AddStudentForm';
 import TermControl from './TermControl';
 import StudentTable from './StudentTable';
-
 export default async function AdminPage() {
   const session = await getSession();
   if (!session) return null;
 
-  const { data: classes } = await supabaseAdmin.from('classes').select('*').order('name');
   const { data: students } = await supabaseAdmin
     .from('users')
     .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
@@ -52,7 +50,7 @@ export default async function AdminPage() {
 
         <AddStudentForm classes={classes || []} />
 
-        <StudentTable students={students || []} classes={classes || []} />
+        <StudentTable students={students || []} classes={Array.isArray(classes) ? classes : []} />
       </main>
     </div>
   );
