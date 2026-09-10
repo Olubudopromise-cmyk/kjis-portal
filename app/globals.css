@@ -80,6 +80,9 @@ td{padding:9px;border-bottom:1px solid var(--line);}
 .notice .meta{font-size:11px;color:var(--muted);margin-top:3px;}
 .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
 
+/* --- Privacy policy page --- */
+.privacy{background:var(--cream);min-height:100vh;}
+
 /* ================================================================
    PUBLIC HOMEPAGE
    ================================================================ */
@@ -179,6 +182,8 @@ td{padding:9px;border-bottom:1px solid var(--line);}
 .hp-footer__contact-phone{font-family:'IBM Plex Mono',monospace;}
 .hp-footer__contact-email{font-family:'IBM Plex Mono',monospace;}
 .hp-footer__gov{color:var(--gold-soft);font-weight:600;margin-top:2px;}
+.hp-footer__legal{color:rgba(247,243,232,.7);text-decoration:none;font-size:13px;transition:color .2s;display:inline-block;margin-right:18px;}
+.hp-footer__legal:hover{color:var(--gold-soft);}
 
 /* --- Testimonials --- */
 .hp-testimonials{background:var(--cream-dark);}

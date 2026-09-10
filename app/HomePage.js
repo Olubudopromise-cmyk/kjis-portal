@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /* ─── Reveal wrapper — fades/slides children in on scroll ───────────── */
@@ -413,7 +414,8 @@ export default function HomePage() {
               </div>
             </div>
           </div>            <div className="hp-footer__right">
-            <span>© {new Date().getFullYear()} King James International School</span>
+            <Link href="/privacy" className="hp-footer__legal">Privacy Policy</Link>
+            <span style={{ marginLeft: 18 }}>© {new Date().getFullYear()} King James International School</span>
             <span className="hp-footer__gov">Government Approved Institution</span>
           </div>
           <div className="hp-footer__contact">
