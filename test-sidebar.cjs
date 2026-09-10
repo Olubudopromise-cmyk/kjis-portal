@@ -2,72 +2,104 @@ const { chromium } = require('playwright');
 const BASE = 'http://localhost:3000';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function waitForLogin(page, creds, timeoutMs = 15000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const uf = await page.$('input[type="text"], input[type="email"], input[name="username"], input[name="email"]');
-    const pf = await page.$('input[type="password"]');
-    if (uf && pf) {
-      await uf.fill(creds.u);
-      await pf.fill(creds.p);
-      const s = await page.$('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Login"), button:has-text("Sign In")');
-      if (s) { await s.click(); await sleep(2000); return true; }
-    }
-    await sleep(500);
-  }
-  return false;
-}
+async function loginAs(page, type) {
+  const creds = {
+    student:  { page: '/login',         identifier: 'Test Student', password: 'password', buttonText: 'Sign in as Student' },
+    teacher:  { page: '/teacher/login', identifier: 'teacher',      password: 'password', buttonText: 'Sign in as Teacher' },
+    admin:    { page: '/admin/login',   identifier: 'admin',        password: 'password', buttonText: 'Sign in as Head Admin' },
+  }[type];
 
-async function loginAs(type) {
-  const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
-  const ctx = await br.newContext({ viewport: { width: 1280, height: 900 } });
-  const page = await ctx.newPage();
-  const creds = { student: { u: 'student', p: 'password' }, teacher: { u: 'teacher', p: 'password' }, admin: { u: 'admin', p: 'password' } }[type];
-  const loginPage = type === 'student' ? '/login' : type === 'teacher' ? '/teacher/login' : '/admin/login';
-  
-  page.on('console', m => { if (m.type() === 'error') console.log(`  [${type}] CONSOLE ERROR: ${m.text()}`); });
-  page.on('pageerror', e => console.log(`  [${type}] PAGE ERROR: ${e.message}`));
-  
-  await page.goto(BASE + loginPage, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await sleep(2000);
-  await waitForLogin(page, creds);
-  return { page, ctx, br };
+  await page.goto(BASE + creds.page, { waitUntil: 'networkidle', timeout: 20000 });
+  await sleep(3000);
+
+  // Try multiple selectors for the identifier field
+  const identifierField = await page.$('input[autoComplete="name"]') || await page.$('input[autoComplete="username"]') || await page.$('input[type="text"]') || await page.$('input:first-of-type');
+  const passwordField = await page.$('input[type="password"]');
+  const submitBtn = await page.$('button:has-text("Sign in")') || await page.$('button[type="submit"]');
+
+  if (!identifierField || !passwordField || !submitBtn) {
+    console.log(`  WARNING: Could not find form fields for ${type} on ${creds.page}`);
+    return false;
+  }
+
+  await identifierField.fill(creds.identifier);
+  await passwordField.fill(creds.password);
+  await submitBtn.click();
+  await sleep(5000);
+
+  // If still on login page, login failed
+  if (page.url().includes(creds.page)) {
+    // Check if there's an error message
+    const errEl = await page.$('.error-msg');
+    const errText = errEl ? await errEl.textContent() : 'no error element';
+    console.log(`  Login FAILED for ${type}, still on ${creds.page} (error: ${errText})`);
+    // Show any error message
+    const err = await page.$('.error-msg');
+    if (err) console.log(`    Error: ${await err.textContent()}`);
+    return false;
+  }
+
+  console.log(`  Logged in as ${type} → ${page.url()}`);
+  return true;
 }
 
 async function testPortal(type, portalUrl, sections) {
-  console.log(`\n=== ${type} portal: ${portalUrl} ===`);
-  const { page, ctx, br } = await loginAs(type);
-  
-  await page.goto(BASE + portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await sleep(3000);
-  
+  console.log(`\n=== ${type} portal ===`);
+  const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
+  const ctx = await br.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+
+  const errors = [];
+  page.on('console', m => { if (m.type() === 'error') errors.push(`${type}: ${m.text()}`); });
+  page.on('pageerror', e => errors.push(`${type} PAGE: ${e.message}`));
+
+  const loggedIn = await loginAs(page, type);
+  if (!loggedIn) {
+    console.log(`  SKIPPING — could not log in`);
+    await ctx.close();
+    await br.close();
+    return;
+  }
+
+  // Navigate to portal
+  await page.goto(BASE + portalUrl, { waitUntil: 'networkidle', timeout: 15000 });
+  await sleep(2000);
+
   const sb = await page.$('.sidebar');
-  console.log(`  sidebar present: ${sb ? 'YES' : 'NO'}`);
+  console.log(`  sidebar: ${sb ? 'YES' : 'NO'}`);
   const ham = await page.$('.sidebar-hamburger');
-  console.log(`  hamburger present: ${ham ? 'YES' : 'NO'}`);
-  
+  console.log(`  hamburger: ${ham ? 'YES' : 'NO'}`);
+
   for (const [label, check] of sections) {
     try {
-      const item = await page.locator('.sidebar-item', { hasText: new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first();
-      const found = await item.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!found) { console.log(`  ✗ "${label}" NOT in sidebar`); continue; }
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const item = await page.locator(`.sidebar-item`, { hasText: new RegExp('^' + escaped + '$') }).first();
+      const visible = await item.isVisible({ timeout: 3000 }).catch(() => false);
+      if (!visible) { console.log(`  ✗ "${label}" not in sidebar`); continue; }
       await item.click();
       await sleep(2000);
       const u = page.url();
-      const stays = u.startsWith(BASE);
-      console.log(`  "${label}" → ${stays ? 'OK' : 'LEFT SITE'}: ${u}`);
+      const ok = u.startsWith(BASE);
+      console.log(`  "${label}" → ${ok ? 'OK' : 'LEFT SITE'}: ${u}`);
       if (check) {
-        const content = await page.$(check);
-        console.log(`    content ${check}: ${content ? 'FOUND' : 'missing'}`);
+        const el = await page.$(check);
+        console.log(`    content ${check}: ${el ? 'FOUND' : 'missing'}`);
       }
     } catch (e) { console.log(`  ✗ "${label}": ${e.message}`); }
   }
+
+  if (errors.length) {
+    console.log(`  ERRORS (${errors.length}):`);
+    for (const e of errors) console.log(`    - ${e}`);
+  } else {
+    console.log(`  no console errors`);
+  }
+
   await ctx.close();
   await br.close();
 }
 
 async function main() {
-  console.log('Testing student portal...');
   await testPortal('student', '/student', [
     ['Overview', '.grid.g3'],
     ['Attendance', '.card'],
@@ -79,8 +111,7 @@ async function main() {
     ['Notices', '.card'],
     ['Sign out', null],
   ]);
-  
-  console.log('\nTesting teacher portal...');
+
   await testPortal('teacher', '/teacher', [
     ['Overview', '.grid.g3'],
     ['Mark Attendance', '.card'],
@@ -89,8 +120,7 @@ async function main() {
     ['Manage', '.card'],
     ['Sign out', null],
   ]);
-  
-  console.log('\nTesting admin portal...');
+
   await testPortal('admin', '/admin', [
     ['Overview', '.grid.g3'],
     ['Classes', '.card'],
@@ -101,10 +131,15 @@ async function main() {
     ['Notices', '.card'],
     ['Sign out', null],
   ]);
-  
-  console.log('\nTesting admin sub-pages...');
-  const { page: pa, ctx: ca, br: ba } = await loginAs('admin');
-  const adminSubs = [
+
+  // Admin sub-pages
+  console.log('\n=== admin sub-pages ===');
+  const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
+  const ctx = await br.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await loginAs(page, 'admin');
+
+  const subs = [
     ['/admin/classes', 'Classes'],
     ['/admin/subjects', 'Subjects'],
     ['/admin/teachers', 'Teachers'],
@@ -112,54 +147,57 @@ async function main() {
     ['/admin/announcements', 'Notices'],
     ['/admin/attendance', 'Attendance'],
   ];
-  for (const [url, name] of adminSubs) {
-    await pa.goto(BASE + url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+  for (const [url, name] of subs) {
+    await page.goto(BASE + url, { waitUntil: 'networkidle', timeout: 15000 });
     await sleep(2500);
-    const h2 = await pa.$('.page-head h2');
+    const h2 = await page.$('.page-head h2');
     const txt = h2 ? (await h2.textContent()).trim() : 'NONE';
-    const sb = await pa.$('.sidebar');
+    const sb = await page.$('.sidebar');
     console.log(`  ${name}: h2="${txt}" sidebar=${sb ? 'YES' : 'NO'}`);
   }
-  await pa.goto(BASE + '/admin', { waitUntil: 'domcontentloaded', timeout: 10000 });
-  await sleep(2000);
-  await ca.close();
-  await ba.close();
-  
-  console.log('\nTesting mobile drawer...');
-  const { page: pm, ctx: cm, br: bm } = await loginAs('student');
-  await pm.setViewportSize({ width: 480, height: 800 });
-  await pm.goto(BASE + '/student', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await ctx.close();
+  await br.close();
+
+  // Mobile drawer
+  console.log('\n=== mobile drawer ===');
+  const br2 = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
+  const ctx2 = await br2.newContext({ viewport: { width: 480, height: 800 } });
+  const page2 = await ctx2.newPage();
+  await loginAs(page2, 'student');
+  await page2.setViewportSize({ width: 480, height: 800 });
+  await page2.goto(BASE + '/student', { waitUntil: 'networkidle', timeout: 15000 });
   await sleep(3000);
-  const ham = await pm.$('.sidebar-hamburger');
+
+  const ham = await page2.$('.sidebar-hamburger');
   if (ham) {
     await ham.click();
     await sleep(800);
-    const open = await pm.$('.sidebar--open');
-    console.log(`  drawer opens on hamburger tap: ${open ? 'YES' : 'NO'}`);
+    const open = await page2.$('.sidebar--open');
+    console.log(`  drawer opens: ${open ? 'YES' : 'NO'}`);
     if (open) {
-      const item = await pm.locator('.sidebar-item', { hasText: 'Attendance' }).first();
+      const item = await page2.locator('.sidebar-item', { hasText: 'Attendance' }).first();
       if (await item.isVisible({ timeout: 3000 }).catch(() => false)) {
         await item.click();
-        await sleep(1200);
-        const closed = await pm.$('.sidebar--open');
-        console.log(`  drawer closes after nav click: ${!closed ? 'YES' : 'NO'}`);
+        await sleep(1500);
+        const closed = await page2.$('.sidebar--open');
+        console.log(`  closes on nav click: ${!closed ? 'YES' : 'NO'}`);
       }
-      await pm.click('body');
+      await page2.click('body');
       await sleep(500);
-      const stillOpen = await pm.$('.sidebar--open');
-      console.log(`  drawer closes on outside tap: ${!stillOpen ? 'YES' : 'NO'}`);
+      const still = await page2.$('.sidebar--open');
+      console.log(`  closes on outside tap: ${!still ? 'YES' : 'NO'}`);
       await ham.click();
       await sleep(600);
-      const reopen = await pm.$('.sidebar--open');
-      console.log(`  drawer reopens: ${reopen ? 'YES' : 'NO'}`);
+      const reopen = await page2.$('.sidebar--open');
+      console.log(`  reopens: ${reopen ? 'YES' : 'NO'}`);
     }
   } else {
     console.log('  ✗ hamburger not found');
   }
-  await cm.close();
-  await bm.close();
-  
-  console.log('\n✓ All tests complete');
+  await ctx2.close();
+  await br2.close();
+
+  console.log('\n✓ Tests complete');
 }
 
-main().catch(e => { console.error('FATAL:', e.message || e); process.exit(1); });
+main().catch(e => { console.error('FATAL:', e.message); process.exit(1); });
