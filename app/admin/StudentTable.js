@@ -148,18 +148,33 @@ export default function StudentTable({ students, classes = [] }) {
   async function toggleActive(student) {
     setError('');
     setBusyId(student.id);
-    const res = await fetch('/api/students', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId: student.id, active: !student.active }),
-    });
-    const data = await res.json();
-    setBusyId(null);
-    if (!res.ok) {
-      setError(data.error || 'Could not update student.');
-      return;
+    try {
+      const res = await fetch('/api/students', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: student.id, active: !student.active }),
+      });
+      const data = await res.json();
+      setBusyId(null);
+      if (!res.ok) {
+        setError(data.error || 'Could not update student.');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setBusyId(null);
+      setError('Could not update student.');
     }
-    router.refresh();
+  }
+
+  function classNameById(classId) {
+    if (!Array.isArray(classes)) return '—';
+    return (classes.find((c) => c.id === classId) || {}).name || '—';
+  }
+
+  function classOptions() {
+    if (!Array.isArray(classes)) return [];
+    return classes.map((c) => ({ value: c.id, label: c.name }));
   }
 
   return (

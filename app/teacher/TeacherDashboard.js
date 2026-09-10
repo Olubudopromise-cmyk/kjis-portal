@@ -12,7 +12,10 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
 
   function loadRoster() {
-    fetch('/api/students').then((r) => r.json()).then((d) => { setRoster(d.students || []); setLoading(false); });
+    fetch('/api/students')
+      .then((r) => r.json())
+      .then((d) => { setRoster(d.students || []); setLoading(false); })
+      .catch(() => setLoading(false));
   }
   useEffect(loadRoster, []);
 
@@ -98,6 +101,7 @@ function ResultsTab({ roster }) {
   const [newScore, setNewScore] = useState('');
   const [newMaxScore, setNewMaxScore] = useState('100');
   const [adding, setAdding] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState('');
 
   useEffect(() => {
     fetch('/api/settings').then((r) => r.json()).then((d) => setTerm(d.settings?.current_term || ''));
@@ -105,8 +109,12 @@ function ResultsTab({ roster }) {
 
   useEffect(() => {
     setSaved(false);
-    if (!student?.category) { setSubjects([]); return; }
-    fetch('/api/subjects').then((r) => r.json()).then((d) => setSubjects((d.subjects?.[student.category] || []).map((s) => s.name)));
+    if (!student?.category) { setSubjects([]); setSelectedSubject(''); return; }
+    fetch('/api/subjects').then((r) => r.json()).then((d) => {
+      const names = (d.subjects?.[student.category] || []).map((s) => s.name);
+      setSubjects(names);
+      setSelectedSubject((current) => (names.includes(current) ? current : names[0] || ''));
+    });
     fetch(`/api/results?studentId=${studentId}`).then((r) => r.json()).then((d) => {
       const m = {};
       (d.results || []).forEach((r) => { m[r.subject] = { ca: r.ca ?? '', exam: r.exam ?? '' }; });
@@ -116,7 +124,7 @@ function ResultsTab({ roster }) {
       const m = {};
       (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
       setAssessments(m);
-    });
+    }).catch(() => setAssessments({}));
   }, [studentId, student, term]);
 
   async function save() {
@@ -179,8 +187,6 @@ function ResultsTab({ roster }) {
     });
   }
 
-  const [selectedSubject, setSelectedSubject] = useState(subjects[0] || '');
-
   return (
     <div className="card">
       <div className="toolbar">
@@ -217,7 +223,7 @@ function ResultsTab({ roster }) {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <select
                 value={selectedSubject}
-                onChange={(e) => { setNewLabel(''); setNewScore(''); setNewMaxScore('100'); }}
+                onChange={(e) => { setSelectedSubject(e.target.value); setNewLabel(''); setNewScore(''); setNewMaxScore('100'); }}
                 style={{ padding: '7px 10px', border: '1.5px solid var(--line)', borderRadius: 7 }}
               >
                 {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -260,7 +266,7 @@ function ResultsTab({ roster }) {
                 <div key={subject} style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6, color: 'var(--muted)' }}>{subject}</div>
                   <table>
-                    <thead><tr><th>Label</th><th>Score</th><th>Max</th><th>Recorded</th><th></th></tr></thead>
+                    <thead><tr><th>Label</th><th>Score</th><th>Recorded</th><th></th></tr></thead>
                     <tbody>
                       {list.map((a) => (
                         <tr key={a.id}>

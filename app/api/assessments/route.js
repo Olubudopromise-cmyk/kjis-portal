@@ -41,8 +41,11 @@ export async function GET(request) {
   if (term) conditions.eq('term', term);
 
   const { data, error } = await conditions.order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ assessments: data });
+  if (error) {
+    console.error('[assessments.GET] Supabase error:', error?.message, error?.code);
+    return NextResponse.json({ error: 'Could not load assessments.' }, { status: 500 });
+  }
+  return NextResponse.json({ assessments: data || [] });
 }
 
 export async function POST(request) {
@@ -75,7 +78,10 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[assessments.POST] Supabase error:', error?.message, error?.code);
+    return NextResponse.json({ error: 'Could not create assessment.' }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, assessment: data });
 }
 
@@ -97,6 +103,9 @@ export async function DELETE(request) {
   }
 
   const { error } = await supabaseAdmin.from('assessments').delete().eq('id', id).eq('student_id', studentId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[assessments.DELETE] Supabase error:', error?.message, error?.code);
+    return NextResponse.json({ error: 'Could not delete assessment.' }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

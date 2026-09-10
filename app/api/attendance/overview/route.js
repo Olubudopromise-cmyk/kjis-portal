@@ -51,14 +51,14 @@ export async function GET(request) {
 
   const { data: marks } = await supabaseAdmin
     .from('attendance')
-    .select('student_id, status')
+    .select('class_id, student_id, status')
     .eq('date', date)
     .in('class_id', classIds);
 
   (marks || []).forEach((m) => {
     if (presentByClass[m.class_id] == null) return;
-    if (m.status === 'present') presentByClass[m.student_id] == null && (presentByClass[m.class_id]++);
-    if (m.status === 'absent') absentByClass[m.student_id] == null && (absentByClass[m.class_id]++);
+    if (m.status === 'present') presentByClass[m.class_id]++;
+    if (m.status === 'absent') absentByClass[m.class_id]++;
   });
 
   const rows = classes.map((c) => {

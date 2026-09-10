@@ -65,7 +65,7 @@ export default function AnnouncementsAdminPage() {
   }
 
   function startEdit(a) {
-    setEditing({ id: a.id, text: a.text, postedAt: new Date(a.created_at || a.created_at) });
+    setEditing({ id: a.id, text: a.text, postedAt: new Date(a.created_at) });
   }
 
   function cancelEdit() {

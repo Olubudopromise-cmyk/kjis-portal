@@ -45,7 +45,12 @@ export default function StudentDashboard({ student }) {
 
 function AttendanceView({ studentId }) {
   const [records, setRecords] = useState(null);
-  useEffect(() => { fetch(`/api/attendance?studentId=${studentId}`).then((r) => r.json()).then((d) => setRecords(d.records || [])); }, [studentId]);
+  useEffect(() => {
+    fetch(`/api/attendance?studentId=${studentId}`)
+      .then((r) => r.json())
+      .then((d) => setRecords(d.records || []))
+      .catch(() => setRecords([]));
+  }, [studentId]);
   if (records === null) return <div className="card empty-note">Loading…</div>;
   const present = records.filter((r) => r.status === 'present').length;
   const pct = records.length ? Math.round((present / records.length) * 100) : 0;
@@ -177,7 +182,7 @@ function ReportCardView({ studentId, category }) {
     fetch(`/api/results?studentId=${studentId}&listTerms=true`).then((r) => r.json()).then((d) => {
       setTerms(d.terms || []);
       setTerm(d.currentTerm || (d.terms || [])[0] || '');
-    });
+    }).catch(() => setTerms([]));
   }, [studentId]);
 
   useEffect(() => {
@@ -194,11 +199,12 @@ function ReportCardView({ studentId, category }) {
       setRank(d.rank ?? null);
       setOutOf(d.outOf ?? null);
     });
-    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then((r) => r.json()).then((d) => {
+    fetch(`/api/assessments?studentId=${studentId}&term=${encodeURIComponent(term)}`).then(async (r) => {
+      const d = await r.json();
       const m = {};
       (d.assessments || []).forEach((a) => { (m[a.subject] = m[a.subject] || []).push(a); });
       setAssessments(m);
-    });
+    }).catch(() => setAssessments({}));
   }, [studentId, term]);
 
   if (subjects === null) return <div className="card empty-note">Loading…</div>;
@@ -244,11 +250,6 @@ function ReportCardView({ studentId, category }) {
         <div className="card stat-card"><div className="label">Average</div><div className="value">{avg != null ? avg + '%' : '—'}</div></div>
         <div className="card stat-card"><div className="label">Overall grade</div><div className="value">{avg != null ? gradeFor(avg) : '—'}</div></div>
       </div>
-      {rank != null && outOf != null && (
-        <div className="card notice" style={{ marginTop: 12, background: 'rgba(184, 143, 20, 0.06)', border: '1.5px solid var(--gold)' }}>
-          Class Position: {rank}th out of {outOf}
-        </div>
-      )}
       <div style={{ marginTop: 20 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>Test &amp; Exam History</div>
         {subjects.map((s) => {
@@ -306,7 +307,12 @@ function SubjectsView({ category }) {
 
 function TimetableView() {
   const [entries, setEntries] = useState(null);
-  useEffect(() => { fetch('/api/timetable').then((r) => r.json()).then((d) => setEntries(d.entries || [])); }, []);
+  useEffect(() => {
+    fetch('/api/timetable')
+      .then((r) => r.json())
+      .then((d) => setEntries(d.entries || []))
+      .catch(() => setEntries([]));
+  }, []);
   if (entries === null) return <div className="card empty-note">Loading…</div>;
   if (!entries.length) return <div className="card empty-note">No timetable has been set up for your class yet.</div>;
 
@@ -371,10 +377,13 @@ function NoticesView() {
   const [list, setList] = useState(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    fetch('/api/announcements').then((r) => r.json()).then((d) => {
-      setList(d.announcements || []);
-      setLoaded(true);
-    });
+    fetch('/api/announcements')
+      .then((r) => r.json())
+      .then((d) => {
+        setList(d.announcements || []);
+        setLoaded(true);
+      })
+      .catch(() => { setList([]); setLoaded(true); }); // never spin forever on a failed fetch
   }, []);
   if (!loaded) return <div className="card empty-note">Loading…</div>;
   return (

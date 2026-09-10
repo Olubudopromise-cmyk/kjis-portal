@@ -8,19 +8,32 @@ export default function AttendanceOverviewPage() {
   const [date, setDate] = useState(defaultDate);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function load() {
+    setError('');
     setLoading(true);
     try {
       const res = await fetch(`/api/attendance/overview?date=${encodeURIComponent(date)}`);
       const data = await res.json();
-      if (res.ok) setRows(data.rows || []);
+      if (!res.ok) {
+        setError(data.error || `Could not load attendance for ${date}`);
+        return;
+      }
+      setRows(data.rows || []);
+    } catch (err) {
+      setError('Could not load attendance.');
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(load, [date]);
+  // NOTE: load() is async — it must be invoked from the effect, not passed
+  // as the effect body, or React treats the returned Promise as a cleanup
+  // function and crashes with "destroy is not a function".
+  useEffect(() => {
+    load();
+  }, [date]);
 
   return (
     <main>
@@ -43,8 +56,9 @@ export default function AttendanceOverviewPage() {
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
+        {error && <div className="error-msg">{error}</div>}
         {rows.length === 0 && !loading ? (
-          <div className="empty-note">No classes yet.</div>
+          <div className="empty-note">No classes have been added yet.</div>
         ) : (
           <table style={{ width: '100%' }}>
             <thead>
