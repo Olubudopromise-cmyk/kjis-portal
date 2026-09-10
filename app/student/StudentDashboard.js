@@ -12,7 +12,24 @@ function gradeFor(total) {
 
 export default function StudentDashboard({ student }) {
   const [tab, setTab] = useState('overview');
-  const balance = (student.total_fee || 0) - (student.paid || 0);
+  const [recentNotices, setRecentNotices] = useState([]);
+  const safeStudent = student || {};
+  const balance = (safeStudent.total_fee || 0) - (safeStudent.paid || 0);
+
+  useEffect(() => {
+    fetch('/api/announcements')
+      .then((r) => r.json())
+      .then((d) => setRecentNotices((d.announcements || []).slice(0, 3)))
+      .catch(() => setRecentNotices([]));
+  }, []);
+
+  if (!student) {
+    return (
+      <div className="portal-content">
+        <div className="card empty-note">Loading student data…</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -40,10 +57,18 @@ export default function StudentDashboard({ student }) {
 
       <div className="portal-content">
         {tab === 'overview' && (
-          <div className="grid g3">
-            <div className="card stat-card"><div className="label">Category</div><div className="value" style={{ fontSize: 18 }}>{student.category || '—'}</div></div>
-            <div className="card stat-card"><div className="label">Fee balance</div><div className="value">₦{balance.toLocaleString()}</div></div>
-            <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{student.admission_no || '—'}</div></div>
+          <div>
+            <div className="grid g3" style={{ marginBottom: 20 }}>
+              <div className="card stat-card"><div className="label">Category</div><div className="value" style={{ fontSize: 18 }}>{safeStudent.category || '—'}</div></div>
+              <div className="card stat-card"><div className="label">Fee balance</div><div className="value">₦{balance.toLocaleString()}</div></div>
+              <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{safeStudent.admission_no || '—'}</div></div>
+            </div>
+            <div className="card">
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>Recent Notices</div>
+              {!recentNotices.length ? <div className="empty-note">No notices posted yet.</div> : recentNotices.map((a) => (
+                <div className="notice" key={a.id}><div>{a.text}</div><div className="meta">{new Date(a.created_at).toLocaleDateString()} · {a.author}</div></div>
+              ))}
+            </div>
           </div>
         )}
         {tab === 'attendance' && <AttendanceView studentId={student.id} />}

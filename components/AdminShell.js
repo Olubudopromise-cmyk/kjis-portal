@@ -1,12 +1,13 @@
 'use client';
 
-import { useSelectedLayoutSegment } from 'next/navigation';
+import { useSelectedLayoutSegment, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from './Sidebar';
 
 export default function AdminShell({ children, session }) {
   const segment = useSelectedLayoutSegment();
   const activeKey = segment || 'overview';
+  const router = useRouter();
 
   const sidebarItems = [
     { icon: '🏠', label: 'Overview', key: 'overview' },
@@ -22,11 +23,10 @@ export default function AdminShell({ children, session }) {
   function handleNavigate(key) {
     if (key === 'signout') {
       window.location.href = '/api/auth/logout';
+    } else {
+      router.push(key === 'overview' ? '/admin' : `/admin/${key}`);
     }
-    // other nav is handled by Link components in the sidebar routing
   }
-
-
 
   return (
     <div className="portal-shell">

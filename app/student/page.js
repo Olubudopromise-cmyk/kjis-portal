@@ -9,6 +9,23 @@ export default async function StudentPage() {
 
   const { data: student } = await supabaseAdmin.from('users').select('*').eq('id', session.id).single();
 
+  if (!student) {
+    return (
+      <div className="portal-shell">
+        <div className="portal-topbar">
+          <div className="brand">
+            <div className="crest">KJ</div>
+            <div className="brand-text"><div className="name">King James International School</div></div>
+          </div>
+          <div className="top-right"><span>Student</span></div>
+        </div>
+        <div className="portal-body">
+          <div className="portal-content"><div className="card empty-note">Student profile not found.</div></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="portal-shell">
       <div className="portal-topbar">

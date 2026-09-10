@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 
 export default function Sidebar({ items, activeKey, onNavigate, userSection = 'Overview' }) {
   const [mobileOpen, setMobileOpen] = useState(false);
