@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Sidebar from '../../components/Sidebar';
 
 function gradeFor(total) {
   if (total >= 70) return 'A';
@@ -15,30 +16,44 @@ export default function StudentDashboard({ student }) {
 
   return (
     <div>
-      <div className="tabs">
-        {[
-          ['overview', 'Overview'], ['attendance', 'Attendance'], ['fees', 'Fees & Payments'],
-          ['results', 'Report Card'], ['subjects', 'My Subjects'], ['timetable', 'Timetable'],
-          ['ai', 'Ask AI Tutor'], ['notices', 'Notices'],
-        ].map(([key, label]) => (
-          <button key={key} className={`tab-btn ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>{label}</button>
-        ))}
-      </div>
+      <Sidebar
+        items={[
+          { icon: '🏠', label: 'Overview', key: 'overview' },
+          { icon: '📋', label: 'Attendance', key: 'attendance' },
+          { icon: '💳', label: 'Fees & Payments', key: 'fees' },
+          { icon: '📊', label: 'Report Card', key: 'results' },
+          { icon: '📚', label: 'My Subjects', key: 'subjects' },
+          { icon: '📅', label: 'Timetable', key: 'timetable' },
+          { icon: '🤖', label: 'Ask AI Tutor', key: 'ai' },
+          { icon: '📢', label: 'Notices', key: 'notices' },
+          { icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' },
+        ]}
+        activeKey={tab}
+        onNavigate={(key) => {
+          if (key === 'signout') {
+            window.location.href = '/api/auth/logout';
+          } else {
+            setTab(key);
+          }
+        }}
+      />
 
-      {tab === 'overview' && (
-        <div className="grid g3">
-          <div className="card stat-card"><div className="label">Category</div><div className="value" style={{ fontSize: 18 }}>{student.category || '—'}</div></div>
-          <div className="card stat-card"><div className="label">Fee balance</div><div className="value">₦{balance.toLocaleString()}</div></div>
-          <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{student.admission_no || '—'}</div></div>
-        </div>
-      )}
-      {tab === 'attendance' && <AttendanceView studentId={student.id} />}
-      {tab === 'fees' && <FeesView student={student} balance={balance} />}
-      {tab === 'results' && <ReportCardView studentId={student.id} category={student.category} />}
-      {tab === 'subjects' && <SubjectsView category={student.category} />}
-      {tab === 'timetable' && <TimetableView />}
-      {tab === 'ai' && <AiTutorView />}
-      {tab === 'notices' && <NoticesView />}
+      <div className="portal-content">
+        {tab === 'overview' && (
+          <div className="grid g3">
+            <div className="card stat-card"><div className="label">Category</div><div className="value" style={{ fontSize: 18 }}>{student.category || '—'}</div></div>
+            <div className="card stat-card"><div className="label">Fee balance</div><div className="value">₦{balance.toLocaleString()}</div></div>
+            <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{student.admission_no || '—'}</div></div>
+          </div>
+        )}
+        {tab === 'attendance' && <AttendanceView studentId={student.id} />}
+        {tab === 'fees' && <FeesView student={student} balance={balance} />}
+        {tab === 'results' && <ReportCardView studentId={student.id} category={student.category} />}
+        {tab === 'subjects' && <SubjectsView category={student.category} />}
+        {tab === 'timetable' && <TimetableView />}
+        {tab === 'ai' && <AiTutorView />}
+        {tab === 'notices' && <NoticesView />}
+      </div>
     </div>
   );
 }

@@ -10,8 +10,8 @@ export default async function StudentPage() {
   const { data: student } = await supabaseAdmin.from('users').select('*').eq('id', session.id).single();
 
   return (
-    <div>
-      <div className="topbar">
+    <div className="portal-shell">
+      <div className="portal-topbar">
         <div className="brand">
           <div className="crest">KJ</div>
           <div className="brand-text"><div className="name">King James International School</div></div>
@@ -21,10 +21,9 @@ export default async function StudentPage() {
           <LogoutButton />
         </div>
       </div>
-      <main>
-        <div className="page-head"><h2>Welcome, {student.full_name.split(' ')[0]}</h2></div>
+      <div className="portal-body">
         <StudentDashboard student={student} />
-      </main>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 export default function ClassesAdminPage() {
   const [classes, setClasses] = useState([]);
@@ -56,9 +55,8 @@ export default function ClassesAdminPage() {
   }
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Classes</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
       <div className="card" style={{ marginTop: 16 }}>
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={add} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -90,6 +88,6 @@ export default function ClassesAdminPage() {
           ))
         )}
       </div>
-    </main>
+    </div>
   );
 }

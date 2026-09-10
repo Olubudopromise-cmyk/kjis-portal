@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 export default function AttendanceOverviewPage() {
   const today = new Date();
@@ -36,9 +35,8 @@ export default function AttendanceOverviewPage() {
   }, [date]);
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Attendance Overview</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
 
       <div className="card" style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <div className="field" style={{ margin: 0 }}>
@@ -86,6 +84,6 @@ export default function AttendanceOverviewPage() {
           </table>
         )}
       </div>
-    </main>
+    </div>
   );
 }

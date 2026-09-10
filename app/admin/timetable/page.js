@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -37,9 +36,8 @@ export default function TimetableAdminPage() {
   }
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Timetable</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
       <div className="card" style={{ marginTop: 16 }}>
         <div className="field">
           <label>Class</label>
@@ -69,6 +67,6 @@ export default function TimetableAdminPage() {
           </table>
         )}
       </div>
-    </main>
+    </div>
   );
 }

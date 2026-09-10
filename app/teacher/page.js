@@ -7,8 +7,8 @@ export default async function TeacherPage() {
   if (!session) return null;
 
   return (
-    <div>
-      <div className="topbar">
+    <div className="portal-shell">
+      <div className="portal-topbar">
         <div className="brand">
           <div className="crest">KJ</div>
           <div className="brand-text"><div className="name">King James International School</div></div>
@@ -18,10 +18,9 @@ export default async function TeacherPage() {
           <LogoutButton />
         </div>
       </div>
-      <main>
-        <div className="page-head"><h2>Teacher Desk</h2></div>
+      <div className="portal-body">
         <TeacherDashboard />
-      </main>
+      </div>
     </div>
   );
 }

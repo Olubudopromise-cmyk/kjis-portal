@@ -5,7 +5,8 @@ import LogoutButton from '../../components/LogoutButton';
 import AddStudentForm from './AddStudentForm';
 import TermControl from './TermControl';
 import StudentTable from './StudentTable';
-export default async function AdminPage() {
+
+export default async function AdminOverviewPage() {
   const session = await getSession();
   if (!session) return null;
 
@@ -18,47 +19,29 @@ export default async function AdminPage() {
     .order('created_at', { ascending: false });
   const { data: termRow } = await supabaseAdmin.from('settings').select('value').eq('key', 'current_term').maybeSingle();
 
+  const totalFees = (students || []).reduce((s, u) => s + (u.total_fee || 0), 0);
+  const totalCollected = (students || []).reduce((s, u) => s + (u.paid || 0), 0);
+
   return (
     <div>
-      <div className="topbar">
-        <div className="brand">
-          <div className="crest">KJ</div>
-          <div className="brand-text"><div className="name">King James International School</div></div>
-        </div>
-        <div className="top-right">
-          <span>{session.name}</span>
-          <LogoutButton />
-        </div>
+      <div className="page-head"><h2>Admin Desk</h2></div>
+
+      <div className="grid g3" style={{ marginBottom: 20 }}>
+        <div className="card stat-card"><div className="label">Active students</div><div className="value">{(students || []).length}</div></div>
+        <div className="card stat-card"><div className="label">Total fees billed</div><div className="value">₦{totalFees.toLocaleString()}</div></div>
+        <div className="card stat-card"><div className="label">Total collected</div><div className="value" style={{ color: 'var(--success)' }}>₦{totalCollected.toLocaleString()}</div></div>
       </div>
-      <main>
-        <div className="page-head"><h2>Admin Desk</h2></div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-          <Link href="/admin/classes" className="btn btn-ghost btn-sm">Classes</Link>
-          <Link href="/admin/subjects" className="btn btn-ghost btn-sm">Categories &amp; Subjects</Link>
-          <Link href="/admin/teachers" className="btn btn-ghost btn-sm">Teachers</Link>
-          <Link href="/admin/timetable" className="btn btn-ghost btn-sm">Timetable</Link>
-          <Link href="/admin/attendance" className="btn btn-ghost btn-sm">Attendance</Link>
-          <Link href="/admin/announcements" className="btn btn-ghost btn-sm">Notices</Link>
-        </div>
+      <TermControl initialTerm={termRow?.value || 'First Term 2025/2026'} />
 
-        <TermControl initialTerm={termRow?.value || 'First Term 2025/2026'} />
-
-        <div className="grid g3" style={{ marginBottom: 20 }}>
-          <div className="card stat-card"><div className="label">Active students</div><div className="value">{(students || []).length}</div></div>
-          <div className="card stat-card"><div className="label">Total fees billed</div><div className="value">₦{(students || []).reduce((s, u) => s + (u.total_fee || 0), 0).toLocaleString()}</div></div>
-          <div className="card stat-card"><div className="label">Total collected</div><div className="value" style={{ color: 'var(--success)' }}>₦{(students || []).reduce((s, u) => s + (u.paid || 0), 0).toLocaleString()}</div></div>
-        </div>
-
-        {Array.isArray(classes) ? (
-          <>
-            <AddStudentForm classes={classes} />
-            <StudentTable students={students || []} classes={classes} />
-          </>
-        ) : (
-          <div className="card empty-note" style={{ marginTop: 20 }}>No classes configured yet.</div>
-        )}
-      </main>
+      {Array.isArray(classes) ? (
+        <>
+          <AddStudentForm classes={classes} />
+          <StudentTable students={students || []} classes={classes} />
+        </>
+      ) : (
+        <div className="card empty-note" style={{ marginTop: 20 }}>No classes configured yet.</div>
+      )}
     </div>
   );
 }

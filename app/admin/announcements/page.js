@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 const EXPIRY_OPTIONS = [
   { value: 'never', label: 'Never expire' },
@@ -73,9 +72,8 @@ export default function AnnouncementsAdminPage() {
   }
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Notices</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
       <div className="card" style={{ marginTop: 16 }}>
         <form onSubmit={post} style={{ marginBottom: 18 }}>
           <div className="field"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a notice for the whole school…" /></div>
@@ -125,6 +123,6 @@ export default function AnnouncementsAdminPage() {
           </div>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

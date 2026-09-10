@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 const CATEGORIES = ['Science', 'Art', 'Commercial'];
 
@@ -31,9 +30,8 @@ export default function SubjectsAdminPage() {
   }
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Categories &amp; Subjects</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
           {CATEGORIES.map((c) => (
@@ -50,6 +48,6 @@ export default function SubjectsAdminPage() {
           <div className="att-row" key={s.id}><div>{s.name}</div><button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>Remove</button></div>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 export default function TeachersAdminPage() {
   const [teachers, setTeachers] = useState([]);
@@ -32,9 +31,8 @@ export default function TeachersAdminPage() {
   const classNameById = (id) => classes.find((c) => c.id === id)?.name || '—';
 
   return (
-    <main>
+    <div>
       <div className="page-head"><h2>Teachers</h2></div>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--navy)' }}>← Back to Admin Desk</Link>
       <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Add teacher</div>
         {error && <div className="error-msg">{error}</div>}
@@ -65,6 +63,6 @@ export default function TeachersAdminPage() {
           </table>
         )}
       </div>
-    </main>
+    </div>
   );
 }

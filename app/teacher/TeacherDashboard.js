@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Sidebar from '../../components/Sidebar';
 import ResetStudentPassword from '../../components/ResetStudentPassword';
 
 function todayStr() {
@@ -7,7 +8,7 @@ function todayStr() {
 }
 
 export default function TeacherDashboard() {
-  const [tab, setTab] = useState('attendance');
+  const [tab, setTab] = useState('overview');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,19 +22,122 @@ export default function TeacherDashboard() {
 
   if (loading) return <div className="card empty-note">Loading your class…</div>;
 
+  // Overview data
+  const classId = roster[0]?.class_id;
+  const classNames = [...new Set(roster.map((s) => s.class_id))];
+  const classLabel = classNames.length === 1 ? classNames[0] : 'Multiple classes';
+
   return (
     <div>
-      <div className="tabs">
-        <button className={`tab-btn ${tab === 'attendance' ? 'active' : ''}`} onClick={() => setTab('attendance')}>Mark Attendance</button>
-        <button className={`tab-btn ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Enter Results</button>
-        <button className={`tab-btn ${tab === 'fees' ? 'active' : ''}`} onClick={() => setTab('fees')}>Fee Status</button>
-        <button className={`tab-btn ${tab === 'manage' ? 'active' : ''}`} onClick={() => setTab('manage')}>Manage</button>
+      <Sidebar
+        items={[
+          { icon: '🏠', label: 'Overview', key: 'overview' },
+          { icon: '📋', label: 'Mark Attendance', key: 'attendance' },
+          { icon: '📝', label: 'Enter Results', key: 'results' },
+          { icon: '💳', label: 'Fee Status', key: 'fees' },
+          { icon: '🔧', label: 'Manage', key: 'manage' },
+          { icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' },
+        ]}
+        activeKey={tab}
+        onNavigate={(key) => {
+          if (key === 'signout') {
+            window.location.href = '/api/auth/logout';
+          } else {
+            setTab(key);
+          }
+        }}
+      />
+
+      <div className="portal-content">
+        {tab === 'overview' && <OverviewSection roster={roster} classLabel={classLabel} />}
+        {tab === 'attendance' && !!roster.length && <AttendanceTab roster={roster} />}
+        {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
+        {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
+        {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
       </div>
-      {!roster.length && <div className="card empty-note">No students are assigned to your class yet.</div>}
-      {tab === 'attendance' && !!roster.length && <AttendanceTab roster={roster} />}
-      {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
-      {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
-      {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
+    </div>
+  );
+}
+
+function OverviewSection({ roster, classLabel }) {
+  const [todayMarked, setTodayMarked] = useState(null);
+  const [todayDate] = useState(todayStr());
+
+  useEffect(() => {
+    if (!roster.length) return;
+    const cid = roster[0].class_id;
+    fetch(`/api/attendance?classId=${cid}&date=${todayDate}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const records = d.records || [];
+        setTodayMarked({
+          total: records.length,
+          present: records.filter((r) => r.status === 'present').length,
+          absent: records.filter((r) => r.status === 'absent').length,
+          unmarked: roster.length - records.length,
+        });
+      })
+      .catch(() => setTodayMarked(null));
+  }, [roster, todayDate]);
+
+  const present = todayMarked?.present ?? 0;
+  const absent = todayMarked?.absent ?? 0;
+  const unmarked = todayMarked?.unmarked ?? 0;
+  const total = roster.length;
+  const pct = total ? Math.round(((present + absent) / total) * 100) : 0;
+
+  return (
+    <div>
+      <div className="grid g3" style={{ marginBottom: 18 }}>
+        <div className="card stat-card">
+          <div className="label">Class</div>
+          <div className="value" style={{ fontSize: 18 }}>{classLabel}</div>
+        </div>
+        <div className="card stat-card">
+          <div className="label">Students</div>
+          <div className="value">{total}</div>
+        </div>
+        <div className="card stat-card">
+          <div className="label">Today marked</div>
+          <div className="value">{present + absent} / {total}</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 16 }}>Today's attendance summary</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 14 }}>{todayDate}</div>
+
+        {todayMarked === null ? (
+          <div className="empty-note">Loading attendance data…</div>
+        ) : !total ? (
+          <div className="empty-note">No students in your class yet.</div>
+        ) : (
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div className="label" style={{ marginBottom: 6 }}>Present</div>
+              <div className="value" style={{ color: 'var(--success)' }}>{present}</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div className="label" style={{ marginBottom: 6 }}>Absent</div>
+              <div className="value" style={{ color: 'var(--danger)' }}>{absent}</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div className="label" style={{ marginBottom: 6 }}>Unmarked</div>
+              <div className="value" style={{ color: 'var(--muted)' }}>{unmarked}</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center' }}>
+              <div className="label" style={{ marginBottom: 6 }}>Rate</div>
+              <div className="value">{pct}%</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {unmarked > 0 && (
+        <div className="card notice" style={{ marginTop: 16, border: '1.5px solid var(--gold)', background: 'rgba(184, 143, 20, 0.06)' }}>
+          <b>{unmarked} student(s)</b> still need attendance marked for today. Go to <b>Mark Attendance</b> to finish.
+        </div>
+      )}
     </div>
   );
 }
