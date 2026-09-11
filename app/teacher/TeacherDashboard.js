@@ -28,7 +28,7 @@ export default function TeacherDashboard() {
   const classLabel = classNames.length === 1 ? classNames[0] : 'Multiple classes';
 
   return (
-    <div>
+    <>
       <Sidebar
         items={[
           { icon: '🏠', label: 'Overview', key: 'overview' },
@@ -55,7 +55,7 @@ export default function TeacherDashboard() {
         {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
         {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
       </div>
-    </div>
+    </>
   );
 }
 

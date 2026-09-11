@@ -32,7 +32,7 @@ export default function StudentDashboard({ student }) {
   }
 
   return (
-    <div>
+    <>
       <Sidebar
         items={[
           { icon: '🏠', label: 'Overview', key: 'overview' },
@@ -79,7 +79,7 @@ export default function StudentDashboard({ student }) {
         {tab === 'ai' && <AiTutorView />}
         {tab === 'notices' && <NoticesView />}
       </div>
-    </div>
+    </>
   );
 }
 

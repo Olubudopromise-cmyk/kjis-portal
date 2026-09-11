@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/session';
 import supabaseAdmin from '../../lib/db';
 import LogoutButton from '../../components/LogoutButton';
@@ -5,9 +6,21 @@ import StudentDashboard from './StudentDashboard';
 
 export default async function StudentPage() {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) {
+    // Middleware should have redirected already; this is a safety net.
+    redirect('/login');
+  }
 
-  const { data: student } = await supabaseAdmin.from('users').select('*').eq('id', session.id).single();
+  const { data: student, error } = await supabaseAdmin
+    .from('users')
+    .select('*')
+    .eq('id', session.id)
+    .single();
+
+  if (error) {
+    console.error('[student/page] DB lookup error:', error.message, error.code);
+    redirect('/login');
+  }
 
   if (!student) {
     return (
@@ -25,6 +38,8 @@ export default async function StudentPage() {
       </div>
     );
   }
+
+  console.log('[student/page] rendering dashboard for:', student.full_name, 'id:', student.id);
 
   return (
     <div className="portal-shell">
