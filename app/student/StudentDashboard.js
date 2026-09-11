@@ -13,6 +13,8 @@ function gradeFor(total) {
 export default function StudentDashboard({ student }) {
   const [tab, setTab] = useState('overview');
   const [recentNotices, setRecentNotices] = useState([]);
+  const [attSummary, setAttSummary] = useState(null);
+  const [nextClass, setNextClass] = useState(null);
   const safeStudent = student || {};
   const balance = (safeStudent.total_fee || 0) - (safeStudent.paid || 0);
 
@@ -21,6 +23,48 @@ export default function StudentDashboard({ student }) {
       .then((r) => r.json())
       .then((d) => setRecentNotices((d.announcements || []).slice(0, 3)))
       .catch(() => setRecentNotices([]));
+  }, []);
+
+  // Fetch attendance summary for overview
+  useEffect(() => {
+    if (!student?.id) return;
+    fetch(`/api/attendance?studentId=${student.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const records = d.records || [];
+        const present = records.filter((r) => r.status === 'present').length;
+        const total = records.length;
+        const pct = total ? Math.round((present / total) * 100) : 0;
+        setAttSummary({ present, total, pct });
+      })
+      .catch(() => setAttSummary(null));
+  }, [student?.id]);
+
+  // Fetch timetable and find next upcoming class
+  useEffect(() => {
+    fetch('/api/timetable')
+      .then((r) => r.json())
+      .then((d) => {
+        const entries = d.entries || [];
+        if (!entries.length) { setNextClass(null); return; }
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const now = new Date();
+        const todayIdx = now.getDay(); // 0=Sun,1=Mon...6=Sat
+        const todayName = days[todayIdx === 0 ? 6 : todayIdx - 1];
+        // Find the next class: today's first entry, or first entry of next weekday, or fallback
+        let found = entries.find((e) => e.day_of_week === todayName);
+        if (!found) {
+          for (let offset = 1; offset <= 6; offset++) {
+            const nextIdx = (todayIdx + offset) % 7;
+            const nextName = days[nextIdx === 0 ? 6 : nextIdx - 1];
+            found = entries.find((e) => e.day_of_week === nextName);
+            if (found) break;
+          }
+        }
+        if (!found) found = entries[0];
+        setNextClass(found || null);
+      })
+      .catch(() => setNextClass(null));
   }, []);
 
   if (!student) {
@@ -58,16 +102,64 @@ export default function StudentDashboard({ student }) {
       <div className="portal-content">
         {tab === 'overview' && (
           <div>
+            {/* Quick stats row */}
             <div className="grid g3" style={{ marginBottom: 20 }}>
               <div className="card stat-card"><div className="label">Category</div><div className="value" style={{ fontSize: 18 }}>{safeStudent.category || '—'}</div></div>
               <div className="card stat-card"><div className="label">Fee balance</div><div className="value">₦{balance.toLocaleString()}</div></div>
               <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{safeStudent.admission_no || '—'}</div></div>
             </div>
+
+            {/* Quick links */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('fees')} style={{ fontSize: 13 }}>💳 Fees</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('results')} style={{ fontSize: 13 }}>📊 Report Card</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('timetable')} style={{ fontSize: 13 }}>📅 Timetable</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('attendance')} style={{ fontSize: 13 }}>📋 Attendance</button>
+            </div>
+
+            <div className="grid g3" style={{ marginBottom: 20 }}>
+              {/* Attendance summary */}
+              <div className="card stat-card">
+                <div className="label">Attendance</div>
+                {attSummary === null ? (
+                  <div className="value" style={{ fontSize: 14, color: 'var(--muted)' }}>Loading…</div>
+                ) : attSummary.total === 0 ? (
+                  <div className="value" style={{ fontSize: 14, color: 'var(--muted)' }}>No records yet</div>
+                ) : (
+                  <>
+                    <div className="value" style={{ color: attSummary.pct >= 75 ? 'var(--success)' : attSummary.pct >= 50 ? 'var(--gold)' : 'var(--danger)' }}>{attSummary.pct}%</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>{attSummary.present}/{attSummary.total} days present</div>
+                  </>
+                )}
+              </div>
+
+              {/* Next class */}
+              <div className="card stat-card" style={{ gridColumn: 'span 2' }}>
+                <div className="label">Next Class</div>
+                {nextClass ? (
+                  <>
+                    <div className="value" style={{ fontSize: 18 }}>{nextClass.subject || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                      {nextClass.day_of_week} · {nextClass.period_label || ''}{nextClass.teacher_name ? ` · ${nextClass.teacher_name}` : ''}
+                    </div>
+                  </>
+                ) : (
+                  <div className="value" style={{ fontSize: 14, color: 'var(--muted)' }}>No timetable set</div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent notices */}
             <div className="card">
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>Recent Notices</div>
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>📢 Recent Notices</div>
               {!recentNotices.length ? <div className="empty-note">No notices posted yet.</div> : recentNotices.map((a) => (
                 <div className="notice" key={a.id}><div>{a.text}</div><div className="meta">{new Date(a.created_at).toLocaleDateString()} · {a.author}</div></div>
               ))}
+              {recentNotices.length > 0 && (
+                <div style={{ marginTop: 8, textAlign: 'right' }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setTab('notices')} style={{ fontSize: 12 }}>View all notices →</button>
+                </div>
+              )}
             </div>
           </div>
         )}
