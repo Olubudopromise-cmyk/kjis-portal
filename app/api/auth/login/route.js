@@ -46,13 +46,25 @@ export async function POST(request) {
     .ilike(column, identifier.trim())
     .maybeSingle();
 
-  console.log('[login] User lookup result:', { found: !!user, userId: user?.id || null, username: user?.username || null, active: user?.active });
-  if (error) console.log('[login] DB lookup error:', error.message);
-
-  if (error || !user) {
+  if (error) {
+    const isTimeout = error.message?.includes('timeout') || error.code === 'PGRST100' || error.message?.includes('Gateway Timeout');
+    console.log('[login] DB lookup error:', { message: error.message, code: error.code, isTimeout });
     await recordFailedAttempt(rlKey);
-    const reason = !user ? 'User not found in database' : 'DB lookup error';
-    console.log('[login] 401:', reason, { role, identifier: identifier.trim() });
+    if (isTimeout) {
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable, please try again.' },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json(
+      { error: role === 'student' ? 'No student found with that name.' : 'Incorrect username or password.' },
+      { status: 401 }
+    );
+  }
+
+  if (!user) {
+    await recordFailedAttempt(rlKey);
+    console.log('[login] 401: User not found');
     return NextResponse.json(
       { error: role === 'student' ? 'No student found with that name.' : 'Incorrect username or password.' },
       { status: 401 }

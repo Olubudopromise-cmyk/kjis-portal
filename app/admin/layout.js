@@ -1,9 +1,13 @@
 import { getSession } from '../../lib/session';
+import { cookies } from 'next/headers';
 import supabaseAdmin from '../../lib/db';
 import AdminShell from '../../components/AdminShell';
 
 export default async function AdminLayout({ children }) {
   const session = await getSession();
+  const cookieStore = await cookies();
+  const isLoggedIn = !!cookieStore.get('kjis_session')?.value;
+  if (!isLoggedIn) return <>{children}</>;
   if (!session || session.role !== 'admin') return null;
 
   const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
