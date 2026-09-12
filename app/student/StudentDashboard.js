@@ -10,6 +10,58 @@ function gradeFor(total) {
   return 'F';
 }
 
+// Timetable rows are Mon–Fri and period_label is a time range like
+// "8:00 - 8:40". Pull the start minute out so we can tell what is genuinely
+// next instead of relying on the order the API happens to return.
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+function parsePeriodStart(label) {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*(am|pm)?/i.exec(label || '');
+  if (!m) return null;
+  let hours = Number(m[1]);
+  const minutes = Number(m[2]);
+  const meridiem = (m[3] || '').toLowerCase();
+  if (meridiem === 'pm' && hours < 12) hours += 12;
+  if (meridiem === 'am' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+// Returns today's index in WEEK_DAYS (0=Mon…4=Fri), or 5/6 for the weekend.
+function weekdayIndex(date = new Date()) {
+  const jsDay = date.getDay(); // 0=Sun…6=Sat
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+function pickNextClass(entries, now = new Date()) {
+  const todayIdx = weekdayIndex(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const decorated = entries
+    .map((entry) => ({ entry, dayIdx: WEEK_DAYS.indexOf(entry.day_of_week), start: parsePeriodStart(entry.period_label) }))
+    .filter((d) => d.dayIdx >= 0);
+
+  if (!decorated.length) return entries[0] || null;
+
+  const byDayThenTime = (a, b) =>
+    a.dayIdx - b.dayIdx || (a.start ?? 0) - (b.start ?? 0) || String(a.entry.period_label).localeCompare(String(b.entry.period_label));
+
+  // Classes still to come: later this week, or later today (unknown start time
+  // counts as still upcoming). If the week is over, wrap to the earliest slot.
+  const upcoming = decorated.filter(
+    (d) => d.dayIdx > todayIdx || (d.dayIdx === todayIdx && (d.start === null || d.start >= nowMinutes))
+  );
+  const chosen = (upcoming.length ? upcoming : decorated).slice().sort(byDayThenTime)[0];
+  return chosen ? chosen.entry : null;
+}
+
+function relativeDay(dayName) {
+  const idx = WEEK_DAYS.indexOf(dayName);
+  if (idx < 0) return dayName;
+  const delta = (idx - weekdayIndex() + 7) % 7;
+  if (delta === 0) return 'Today';
+  if (delta === 1) return 'Tomorrow';
+  return dayName;
+}
+
 export default function StudentDashboard({ student }) {
   const [tab, setTab] = useState('overview');
   const [recentNotices, setRecentNotices] = useState([]);
@@ -44,26 +96,7 @@ export default function StudentDashboard({ student }) {
   useEffect(() => {
     fetch('/api/timetable')
       .then((r) => r.json())
-      .then((d) => {
-        const entries = d.entries || [];
-        if (!entries.length) { setNextClass(null); return; }
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const now = new Date();
-        const todayIdx = now.getDay(); // 0=Sun,1=Mon...6=Sat
-        const todayName = days[todayIdx === 0 ? 6 : todayIdx - 1];
-        // Find the next class: today's first entry, or first entry of next weekday, or fallback
-        let found = entries.find((e) => e.day_of_week === todayName);
-        if (!found) {
-          for (let offset = 1; offset <= 6; offset++) {
-            const nextIdx = (todayIdx + offset) % 7;
-            const nextName = days[nextIdx === 0 ? 6 : nextIdx - 1];
-            found = entries.find((e) => e.day_of_week === nextName);
-            if (found) break;
-          }
-        }
-        if (!found) found = entries[0];
-        setNextClass(found || null);
-      })
+      .then((d) => setNextClass(pickNextClass(d.entries || [])))
       .catch(() => setNextClass(null));
   }, []);
 
@@ -140,7 +173,7 @@ export default function StudentDashboard({ student }) {
                   <>
                     <div className="value" style={{ fontSize: 18 }}>{nextClass.subject || '—'}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-                      {nextClass.day_of_week} · {nextClass.period_label || ''}{nextClass.teacher_name ? ` · ${nextClass.teacher_name}` : ''}
+                      {relativeDay(nextClass.day_of_week)} · {nextClass.period_label || ''}{nextClass.teacher_name ? ` · ${nextClass.teacher_name}` : ''}
                     </div>
                   </>
                 ) : (

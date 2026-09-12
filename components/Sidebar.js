@@ -42,10 +42,12 @@ export default function Sidebar({ items, activeKey, onNavigate, userSection = 'O
     <>
       {/* ── mobile hamburger ── */}
       <button
-        className="sidebar-hamburger"
+        type="button"
+        className={`sidebar-hamburger ${mobileOpen ? 'sidebar-hamburger--hidden' : ''}`}
         onClick={() => setMobileOpen(true)}
         aria-label="Open navigation menu"
         aria-expanded={mobileOpen}
+        aria-controls="portal-sidebar"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M3 6h18M3 12h18M3 18h18" />
@@ -59,6 +61,7 @@ export default function Sidebar({ items, activeKey, onNavigate, userSection = 'O
 
       {/* ── sidebar panel ── */}
       <aside
+        id="portal-sidebar"
         ref={drawerRef}
         className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`}
         aria-label="Main navigation"
