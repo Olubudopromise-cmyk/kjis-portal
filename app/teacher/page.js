@@ -1,10 +1,13 @@
 import { getSession } from '../../lib/session';
+import supabaseAdmin from '../../lib/db';
 import LogoutButton from '../../components/LogoutButton';
 import TeacherDashboard from './TeacherDashboard';
 
 export default async function TeacherPage() {
   const session = await getSession();
   if (!session) return null;
+
+  const { data: teacher } = await supabaseAdmin.from('users').select('*').eq('id', session.id).single();
 
   return (
     <div className="portal-shell">
@@ -19,7 +22,7 @@ export default async function TeacherPage() {
         </div>
       </div>
       <div className="portal-body">
-        <TeacherDashboard />
+        <TeacherDashboard session={session} teacher={teacher} />
       </div>
     </div>
   );

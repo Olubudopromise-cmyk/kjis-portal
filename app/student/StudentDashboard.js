@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
+import { NoticesIcon } from '../../components/icons';
 
 function gradeFor(total) {
   if (total >= 70) return 'A';
@@ -119,7 +120,7 @@ export default function StudentDashboard({ student }) {
           { icon: '📚', label: 'My Subjects', key: 'subjects' },
           { icon: '📅', label: 'Timetable', key: 'timetable' },
           { icon: '🤖', label: 'Ask AI Tutor', key: 'ai' },
-          { icon: '📢', label: 'Notices', key: 'notices' },
+          { icon: <NoticesIcon />, label: 'Notices', key: 'notices' },
           { icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' },
         ]}
         activeKey={tab}
@@ -142,12 +143,12 @@ export default function StudentDashboard({ student }) {
               <div className="card stat-card"><div className="label">Admission No.</div><div className="value" style={{ fontSize: 18 }}>{safeStudent.admission_no || '—'}</div></div>
             </div>
 
-            {/* Quick links */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-              <button className="btn btn-navy btn-sm" onClick={() => setTab('fees')} style={{ fontSize: 13 }}>💳 Fees</button>
-              <button className="btn btn-navy btn-sm" onClick={() => setTab('results')} style={{ fontSize: 13 }}>📊 Report Card</button>
-              <button className="btn btn-navy btn-sm" onClick={() => setTab('timetable')} style={{ fontSize: 13 }}>📅 Timetable</button>
-              <button className="btn btn-navy btn-sm" onClick={() => setTab('attendance')} style={{ fontSize: 13 }}>📋 Attendance</button>
+            {/* Quick links — a 2x2 grid on mobile, one row on desktop */}
+            <div className="quick-links">
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('fees')}>💳 Fees</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('results')}>📊 Report Card</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('timetable')}>📅 Timetable</button>
+              <button className="btn btn-navy btn-sm" onClick={() => setTab('attendance')}>📋 Attendance</button>
             </div>
 
             <div className="grid g3" style={{ marginBottom: 20 }}>
@@ -184,7 +185,10 @@ export default function StudentDashboard({ student }) {
 
             {/* Recent notices */}
             <div className="card">
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>📢 Recent Notices</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 12, color: 'var(--navy)' }}>
+                <NoticesIcon size={16} />
+                Recent Notices
+              </div>
               {!recentNotices.length ? <div className="empty-note">No notices posted yet.</div> : recentNotices.map((a) => (
                 <div className="notice" key={a.id}><div>{a.text}</div><div className="meta">{new Date(a.created_at).toLocaleDateString()} · {a.author}</div></div>
               ))}

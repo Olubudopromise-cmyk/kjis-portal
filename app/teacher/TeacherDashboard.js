@@ -7,18 +7,37 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function TeacherDashboard() {
+export default function TeacherDashboard({ session, teacher }) {
   const [tab, setTab] = useState('overview');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
+  const hasClass = teacher?.class_id != null;
 
   function loadRoster() {
-    fetch('/api/students')
+    if (!hasClass) { setRoster([]); setLoading(false); return; }
+    fetch(`/api/students?classId=${teacher.class_id}`)
       .then((r) => r.json())
       .then((d) => { setRoster(d.students || []); setLoading(false); })
       .catch(() => setLoading(false));
   }
-  useEffect(loadRoster, []);
+  useEffect(loadRoster, [hasClass, teacher?.class_id]);
+
+  if (!teacher) {
+    return (
+      <>
+        <Sidebar items={[{ icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' }]} activeKey="signout" onNavigate={() => window.location.href = '/api/auth/logout'} />
+        <div className="portal-content"><div className="card empty-note">Teacher profile not found.</div></div>
+      </>
+    );
+  }
+  if (!hasClass) {
+    return (
+      <>
+        <Sidebar items={[{ icon: '🏠', label: 'Overview', key: 'overview' }, { icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' }]} activeKey={tab} onNavigate={(key) => { if (key === 'signout') { window.location.href = '/api/auth/logout'; } else { setTab(key); } }} />
+        <div className="portal-content"><div className="card empty-note">You are not assigned to a class yet. Ask an administrator to assign one.</div></div>
+      </>
+    );
+  }
 
   if (loading) return <div className="card empty-note">Loading your class…</div>;
 

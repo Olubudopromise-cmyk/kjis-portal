@@ -4,7 +4,7 @@ import AdminShell from '../../components/AdminShell';
 
 export default async function AdminLayout({ children }) {
   const session = await getSession();
-  if (!session) return null;
+  if (!session || session.role !== 'admin') return null;
 
   const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
   const { data: classes } = classesResult;
