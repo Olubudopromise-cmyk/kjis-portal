@@ -71,6 +71,18 @@ export async function POST(request) {
     );
   }
 
+  // A student row that was created through the registration path but never
+  // finished setup (no username / no password_hash) can't log in. Give a
+  // specific message so the admin can fix the row instead of retrying.
+  if (role === 'student' && (!user.username || !user.password_hash)) {
+    await recordFailedAttempt(rlKey);
+    console.log('[login] 400: Incomplete student account', { id: user.id, username: user.username, hasPassword: !!user.password_hash });
+    return NextResponse.json(
+      { error: 'Account incomplete — please contact the school to complete registration.' },
+      { status: 400 }
+    );
+  }
+
   const ok = await verifyPassword(password, user.password_hash);
   console.log('[login] Password comparison result:', { ok, userId: user.id });
 
@@ -108,4 +120,3 @@ export async function POST(request) {
   console.log('[login] 200: Login successful for', user.username || user.full_name, 'role:', user.role);
   return res;
 }
-
