@@ -71,10 +71,10 @@ export async function POST(request) {
     );
   }
 
-  // A student row that was created through the registration path but never
-  // finished setup (no username / no password_hash) can't log in. Give a
-  // specific message so the admin can fix the row instead of retrying.
-  if (role === 'student' && (!user.username || !user.password_hash)) {
+  // A student row without a password hash can't log in. Students sign in by
+  // full name, so a missing username is not a barrier — only the password
+  // hash matters. Give a specific message so the admin can fix the row.
+  if (role === 'student' && !user.password_hash) {
     await recordFailedAttempt(rlKey);
     console.log('[login] 400: Incomplete student account', { id: user.id, username: user.username, hasPassword: !!user.password_hash });
     return NextResponse.json(
@@ -83,7 +83,7 @@ export async function POST(request) {
     );
   }
 
-  const ok = await verifyPassword(password, user.password_hash);
+  const ok = await verifyPassword(password.trim(), user.password_hash);
   console.log('[login] Password comparison result:', { ok, userId: user.id });
 
   if (!ok) {
