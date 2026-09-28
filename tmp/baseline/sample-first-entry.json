@@ -1,0 +1,184 @@
+{
+  "class_level": "JSS1",
+  "subject": "ENGLISH STUDIES",
+  "term": "First Term",
+  "strand_columns": [
+    "Week",
+    "Speech Work",
+    "Grammar",
+    "Reading & Comprehension",
+    "Composition",
+    "Literature in English"
+  ],
+  "weeks": [
+    {
+      "week_start": 1,
+      "week_end": 1,
+      "break": false,
+      "topics": {
+        "Speech Work": "Introduction to Speech; Organs of",
+        "Grammar": "Parts of Speech; Nouns –",
+        "Reading & Comprehension": "The Family (use any recommended",
+        "Composition": "Meaning of Composition; Types –",
+        "Literature in English": "What is Literature?"
+      },
+      "raw_text": "1 Introduction to Speech; Organs of Parts of Speech; Nouns – The Family (use any recommended Meaning of Composition; Types – What is Literature?"
+    },
+    {
+      "week_start": 2,
+      "week_end": 2,
+      "break": false,
+      "topics": {
+        "Speech Work": "Pure Vowel Sounds (Monothongs)",
+        "Grammar": "Pronouns – Meaning, Identification,",
+        "Reading & Comprehension": "Reading Strategies",
+        "Composition": "Elements of Composition – Introduction,",
+        "Literature in English": "Features of Literature; Types – Oral, Historical,"
+      },
+      "raw_text": "2 Pure Vowel Sounds (Monothongs) Pronouns – Meaning, Identification, Reading Strategies Elements of Composition – Introduction, Features of Literature; Types – Oral, Historical,"
+    },
+    {
+      "week_start": 3,
+      "week_end": 3,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /i:/",
+        "Grammar": "Verbs – Definition, Identification; Types –",
+        "Reading & Comprehension": "SPQ3R Technique – Survey, Preview,",
+        "Composition": "Elements of Composition – Introduction, Body,",
+        "Literature in English": "Purpose/Functions of Literature; Introduction to Prose (use"
+      },
+      "raw_text": "3 Vowel Sound /i:/ Verbs – Definition, Identification; Types – SPQ3R Technique – Survey, Preview, Elements of Composition – Introduction, Body, Purpose/Functions of Literature; Introduction to Prose (use"
+    },
+    {
+      "week_start": 4,
+      "week_end": 4,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /i/",
+        "Grammar": "Verbs (continued) – Types and Functions",
+        "Reading & Comprehension": "Identifying Main and Supporting Ideas; Vocabulary – Your School Subjects",
+        "Composition": "Differences between Descriptive and Narrative Essays",
+        "Literature in English": "Elements of Prose – Plot, Style, Characterization; Types of Oral Literature"
+      },
+      "raw_text": "4 Vowel Sound /i/ Verbs (continued) – Types and Functions Identifying Main and Supporting Ideas; Vocabulary – Your School Subjects Differences between Descriptive and Narrative Essays Elements of Prose – Plot, Style, Characterization; Types of Oral Literature"
+    },
+    {
+      "week_start": 5,
+      "week_end": 5,
+      "break": true,
+      "topics": {
+        "Speech Work": "Midterm Examination",
+        "Grammar": "Midterm Examination",
+        "Reading & Comprehension": "Midterm Examination",
+        "Composition": "Midterm Examination",
+        "Literature in English": "Midterm Examination"
+      },
+      "raw_text": "5 Midterm Examination Midterm Examination Midterm Examination Midterm Examination Midterm Examination"
+    },
+    {
+      "week_start": 6,
+      "week_end": 6,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /e/",
+        "Grammar": "Adjectives – Definition, Types; Comparison of Adjectives (Absolute etc.)",
+        "Reading & Comprehension": "Differentiating Main Ideas from Supporting Ideas in a passage 4",
+        "Composition": "Paragraph Writing – Logical sequence with Introduction & Conclusion",
+        "Literature in English": "Introduction to Drama; Types & Elements of Drama; Characterization & Themes in recommended prose text"
+      },
+      "raw_text": "6 Vowel Sound /e/ Adjectives – Definition, Types; Comparison of Adjectives (Absolute etc.) Differentiating Main Ideas from Supporting Ideas in a passage 4 Paragraph Writing – Logical sequence with Introduction & Conclusion Introduction to Drama; Types & Elements of Drama; Characterization & Themes in recommended prose text"
+    },
+    {
+      "week_start": 7,
+      "week_end": 7,
+      "break": true,
+      "topics": {
+        "Speech Work": "Midterm Break",
+        "Grammar": "Midterm Break",
+        "Reading & Comprehension": "Midterm Break",
+        "Composition": "Midterm Break",
+        "Literature in English": "Midterm Break"
+      },
+      "raw_text": "7 Midterm Break Midterm Break Midterm Break Midterm Break Midterm Break"
+    },
+    {
+      "week_start": 8,
+      "week_end": 8,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /æ/",
+        "Grammar": "Adverbs – Definition, Identification, Types (with examples)",
+        "Reading & Comprehension": "Reading to answer specific questions (Interpretation & Projection",
+        "Composition": "Descriptive Essay – A Market Place",
+        "Literature in English": "Introduction to Drama; Types & Elements; Characterization & Themes in"
+      },
+      "raw_text": "8 Vowel Sound /æ/ Adverbs – Definition, Identification, Types (with examples) Reading to answer specific questions (Interpretation & Projection Descriptive Essay – A Market Place Introduction to Drama; Types & Elements; Characterization & Themes in"
+    },
+    {
+      "week_start": 9,
+      "week_end": 9,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /a:/",
+        "Grammar": "Prepositions – Definition, Identification, Types & Functions",
+        "Reading & Comprehension": "Applying SPQ3R to a given passage",
+        "Composition": "Letter Writing – Introduction and Types",
+        "Literature in English": "Folktales – Introduction, Definition, Types; Narration of a Folktale; Recommended"
+      },
+      "raw_text": "9 Vowel Sound /a:/ Prepositions – Definition, Identification, Types & Functions Applying SPQ3R to a given passage Letter Writing – Introduction and Types Folktales – Introduction, Definition, Types; Narration of a Folktale; Recommended"
+    },
+    {
+      "week_start": 10,
+      "week_end": 10,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /p/",
+        "Grammar": "Conjunctions – Definition, Types (Subordinating &",
+        "Reading & Comprehension": "Asking questions to cover all comprehension levels (who,",
+        "Composition": "Features of an Informal Letter",
+        "Literature in English": "Recommended Drama Text; Introduction to Figures of Speech – Simile,"
+      },
+      "raw_text": "10 Vowel Sound /p/ Conjunctions – Definition, Types (Subordinating & Asking questions to cover all comprehension levels (who, Features of an Informal Letter Recommended Drama Text; Introduction to Figures of Speech – Simile,"
+    },
+    {
+      "week_start": 11,
+      "week_end": 11,
+      "break": false,
+      "topics": {
+        "Speech Work": "Vowel Sound /ɔ:/",
+        "Grammar": "Adverbials – Features, Functions, Types",
+        "Reading & Comprehension": "Asking specific questions to elicit student opinions",
+        "Composition": "Informal Letter – Features",
+        "Literature in English": "Recommended Drama Text; Figures of Speech – Simile, Metaphor, Irony"
+      },
+      "raw_text": "11 Vowel Sound /ɔ:/ Adverbials – Features, Functions, Types Asking specific questions to elicit student opinions Informal Letter – Features Recommended Drama Text; Figures of Speech – Simile, Metaphor, Irony"
+    },
+    {
+      "week_start": 12,
+      "week_end": 12,
+      "break": false,
+      "topics": {
+        "Speech Work": "–",
+        "Grammar": "–",
+        "Reading & Comprehension": "–",
+        "Composition": "–",
+        "Literature in English": "Revision & Examination –"
+      },
+      "raw_text": "12 – – – – Revision & Examination –"
+    },
+    {
+      "week_start": 13,
+      "week_end": 13,
+      "break": false,
+      "topics": {
+        "Speech Work": "–",
+        "Grammar": "–",
+        "Reading & Comprehension": "–",
+        "Composition": "–",
+        "Literature in English": "Closing"
+      },
+      "raw_text": "13 – – – – Closing"
+    }
+  ]
+}
