@@ -10,14 +10,19 @@ export default async function AdminOverviewPage() {
   const session = await getSession();
   if (!session) return null;
 
+  // Every read is tolerated: a slow or failing Supabase call must not blank the
+  // whole admin page (the shell and the register-a-student form stay usable),
+  // so each query degrades to "no data" and the sections below say so.
   const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
-  const { data: classes } = classesResult;
-  const { data: students } = await supabaseAdmin
+  const classes = classesResult.error ? null : classesResult.data;
+  const studentsResult = await supabaseAdmin
     .from('users')
     .select('id, full_name, class_id, category, total_fee, paid, admission_no, active')
     .eq('role', 'student')
     .order('created_at', { ascending: false });
+  const students = studentsResult.error ? [] : studentsResult.data || [];
   const { data: termRow } = await supabaseAdmin.from('settings').select('value').eq('key', 'current_term').maybeSingle();
+  const { data: startDateRow } = await supabaseAdmin.from('settings').select('value').eq('key', 'term_start_date').maybeSingle();
 
   const totalFees = (students || []).reduce((s, u) => s + (u.total_fee || 0), 0);
   const totalCollected = (students || []).reduce((s, u) => s + (u.paid || 0), 0);
