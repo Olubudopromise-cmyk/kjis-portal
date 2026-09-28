@@ -68,6 +68,7 @@ export default function StudentDashboard({ student }) {
   const [recentNotices, setRecentNotices] = useState([]);
   const [attSummary, setAttSummary] = useState(null);
   const [nextClass, setNextClass] = useState(null);
+  const [sowData, setSowData] = useState(null);
   const safeStudent = student || {};
   const balance = (safeStudent.total_fee || 0) - (safeStudent.paid || 0);
 
@@ -76,6 +77,14 @@ export default function StudentDashboard({ student }) {
       .then((r) => r.json())
       .then((d) => setRecentNotices((d.announcements || []).slice(0, 3)))
       .catch(() => setRecentNotices([]));
+  }, []);
+
+  // Fetch scheme of work for the "This Week's Focus" card
+  useEffect(() => {
+    fetch('/api/scheme-of-work')
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setSowData(d); })
+      .catch(() => {});
   }, []);
 
   // Fetch attendance summary for overview
@@ -152,6 +161,8 @@ export default function StudentDashboard({ student }) {
               <button className="btn btn-navy btn-sm" onClick={() => setTab('attendance')}>📋 Attendance</button>
             </div>
 
+            {sowData && <ThisWeeksFocusCard sowData={sowData} />}
+
             <div className="grid g3" style={{ marginBottom: 20 }}>
               {/* Attendance summary */}
               <div className="card stat-card">
@@ -211,6 +222,75 @@ export default function StudentDashboard({ student }) {
         {tab === 'notices' && <NoticesView />}
       </div>
     </>
+  );
+}
+
+// Picks the week row covering the given week number for a subject.
+function weekFor(subject, weekNum) {
+  if (!subject.weeks.length) return null;
+  if (!weekNum) return subject.weeks[0];
+  return (
+    subject.weeks.find((w) => weekNum >= w.weekStart && weekNum <= w.weekEnd) ||
+    subject.weeks[0]
+  );
+}
+
+function ThisWeeksFocusCard({ sowData }) {
+  const [showAll, setShowAll] = useState(false);
+  const subjects = sowData.subjects || [];
+  if (!subjects.length) return null;
+
+  // English and Mathematics first, then the rest in curriculum order.
+  const CORE = ['ENGLISH STUDIES', 'MATHEMATICS'];
+  const ordered = subjects.slice().sort((a, b) => {
+    const ca = CORE.indexOf(a.subjectKey);
+    const cb = CORE.indexOf(b.subjectKey);
+    if (ca !== -1 && cb !== -1) return ca - cb;
+    if (ca !== -1) return -1;
+    if (cb !== -1) return 1;
+    return 0;
+  });
+
+  const visible = showAll ? ordered : ordered.slice(0, 6);
+  const weekNum = sowData.currentWeek;
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div style={{ fontWeight: 700, color: 'var(--navy)' }}>This Week's Focus</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+          {weekNum ? `Week ${weekNum}` : 'Week 1'}{sowData.term ? ` · ${sowData.term}` : ''}
+        </div>
+      </div>
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
+        {sowData.classLevel ? sowData.classLevel.replace('SSS', 'SS').replace(/^(JSS|SS)(\d)$/, '$1 $2') : ''}
+      </div>
+      <div className="grid g3">
+        {visible.map((s) => {
+          const w = weekFor(s, weekNum);
+          const topic = w && !w.isBreak ? (w.topics.Topic || '') : '';
+          return (
+            <div key={s.subjectKey || s.subject} className="card stat-card" style={{ marginBottom: 0 }}>
+              <div className="label" style={{ fontSize: 11.5, marginBottom: 4 }}>{s.subject}</div>
+              {w?.isBreak ? (
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>Break week</div>
+              ) : topic ? (
+                <div style={{ fontSize: 13.5 }}>{topic}</div>
+              ) : (
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>—</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {ordered.length > 6 && (
+        <div style={{ marginTop: 12, textAlign: 'right' }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowAll(!showAll)} style={{ fontSize: 12 }}>
+            {showAll ? 'Show fewer subjects' : `Show all ${ordered.length} subjects`}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

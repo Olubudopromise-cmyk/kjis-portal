@@ -44,6 +44,23 @@ export async function GET() {
     return NextResponse.json({ error: 'Current term not set.' }, { status: 404 });
   }
 
+  // Resolve the term start date -> current week number (1-based). The setting
+  // is optional; when it is missing or unparseable the week is null and the
+  // client falls back to showing the first week.
+  const { data: startDateRow } = await supabaseAdmin
+    .from('settings')
+    .select('value')
+    .eq('key', 'term_start_date')
+    .maybeSingle();
+  let currentWeek = null;
+  if (startDateRow?.value) {
+    const start = new Date(startDateRow.value);
+    if (!isNaN(start.getTime())) {
+      const days = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
+      currentWeek = Math.min(14, Math.max(1, Math.floor(days / 7) + 1));
+    }
+  }
+
   const { data: rows, error } = await supabaseAdmin
     .from('curriculum')
     .select('subject, subject_key, week_start, week_end, is_break, topics, breakdown')
@@ -71,6 +88,7 @@ export async function GET() {
   return NextResponse.json({
     classLevel,
     term,
+    currentWeek,
     subjects: [...bySubject.values()],
   });
 }
