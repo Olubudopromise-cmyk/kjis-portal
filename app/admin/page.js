@@ -37,7 +37,7 @@ export default async function AdminOverviewPage() {
         <div className="card stat-card"><div className="label">Total collected</div><div className="value" style={{ color: 'var(--success)' }}>₦{totalCollected.toLocaleString()}</div></div>
       </div>
 
-      <TermControl initialTerm={termRow?.value || 'First Term 2025/2026'} />
+      <TermControl initialTerm={termRow?.value || 'First Term 2025/2026'} initialStartDate={startDateRow?.value || ''} />
 
       {Array.isArray(classes) ? (
         <>
