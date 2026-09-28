@@ -7,19 +7,26 @@ import AdminNotFound from './not-found';
 export default async function AdminLayout({ children }) {
   const session = await getSession();
   const cookieStore = await cookies();
+  const hasCookie = !!cookieStore.get('kjis_session')?.value;
+  const sessionRole = session?.role || null;
+  console.log('[admin/layout] session check:', { hasCookie, sessionRole, sessionExists: !!session });
 
   // No session cookie at all -> this is the unauthenticated case, which means
   // the page being rendered is /admin/login (middleware bounces every other
   // /admin path to it). Render that page bare, without the portal shell, and
   // crucially WITHOUT redirecting: /admin/login lives inside this segment, so
   // redirecting here is what previously caused a redirect loop.
-  if (!cookieStore.get('kjis_session')?.value) return <>{children}</>;
+  if (!hasCookie) return <>{children}</>;
 
   // A cookie exists but the token is expired/tampered with, or it belongs to
   // another role. Return the not-found page directly (not throw notFound())
   // so it replaces the entire segment — throwing renders the not-found page
   // alongside the page content, producing a broken half-rendered screen.
-  if (!session || session.role !== 'admin') return <AdminNotFound />;
+  if (!session || session.role !== 'admin') {
+    console.log('[admin/layout] rendering AdminNotFound — session invalid');
+    return <AdminNotFound />;
+  }
+  console.log('[admin/layout] rendering AdminShell');
 
   const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
   const { data: classes } = classesResult;
