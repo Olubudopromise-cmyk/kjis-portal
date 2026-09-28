@@ -1,8 +1,8 @@
 import { getSession } from '../../lib/session';
-import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import supabaseAdmin from '../../lib/db';
 import AdminShell from '../../components/AdminShell';
+import AdminNotFound from './not-found';
 
 export default async function AdminLayout({ children }) {
   const session = await getSession();
@@ -16,11 +16,10 @@ export default async function AdminLayout({ children }) {
   if (!cookieStore.get('kjis_session')?.value) return <>{children}</>;
 
   // A cookie exists but the token is expired/tampered with, or it belongs to
-  // another role. Middleware already redirects normal navigations to the login
-  // page; this covers deep-links and direct hits. Returning notFound() renders
-  // app/admin/not-found.js (which sends the user to the login page) instead of
-  // the previous `return null`, which produced a literally blank screen.
-  if (!session || session.role !== 'admin') throw notFound();
+  // another role. Return the not-found page directly (not throw notFound())
+  // so it replaces the entire segment — throwing renders the not-found page
+  // alongside the page content, producing a broken half-rendered screen.
+  if (!session || session.role !== 'admin') return <AdminNotFound />;
 
   const classesResult = await supabaseAdmin.from('classes').select('*').order('name');
   const { data: classes } = classesResult;
