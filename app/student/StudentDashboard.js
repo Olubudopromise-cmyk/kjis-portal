@@ -118,6 +118,7 @@ export default function StudentDashboard({ student }) {
           { icon: '💳', label: 'Fees & Payments', key: 'fees' },
           { icon: '📊', label: 'Report Card', key: 'results' },
           { icon: '📚', label: 'My Subjects', key: 'subjects' },
+          { icon: '📖', label: 'Scheme of Work', key: 'scheme' },
           { icon: '📅', label: 'Timetable', key: 'timetable' },
           { icon: '🤖', label: 'Ask AI Tutor', key: 'ai' },
           { icon: <NoticesIcon />, label: 'Notices', key: 'notices' },
@@ -204,6 +205,7 @@ export default function StudentDashboard({ student }) {
         {tab === 'fees' && <FeesView student={student} balance={balance} />}
         {tab === 'results' && <ReportCardView studentId={student.id} category={student.category} />}
         {tab === 'subjects' && <SubjectsView category={student.category} />}
+        {tab === 'scheme' && <SchemeOfWorkView />}
         {tab === 'timetable' && <TimetableView />}
         {tab === 'ai' && <AiTutorView />}
         {tab === 'notices' && <NoticesView />}
@@ -470,6 +472,55 @@ function SubjectsView({ category }) {
           <tbody>{list.map((s, i) => <tr key={s.id}><td className="mono">{i + 1}</td><td>{s.name}</td></tr>)}</tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+function SchemeOfWorkView() {
+  const [data, setData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/scheme-of-work')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setError(d.error); setLoaded(true); return; }
+        setData(d);
+        setLoaded(true);
+      })
+      .catch(() => { setError('Could not load the scheme of work.'); setLoaded(true); });
+  }, []);
+
+  if (!loaded) return <div className="card empty-note">Loading…</div>;
+  if (error) return <div className="card empty-note">{error}</div>;
+  if (!data.subjects.length) return <div className="card empty-note">No scheme of work has been published for your class yet.</div>;
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>Scheme of Work</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+          {data.classLevel.replace('SSS', 'SS').replace(/^(JSS|SS)(\d)$/, '$1 $2')} · {data.term} · NERDC 2025
+        </div>
+      </div>
+      {data.subjects.map((s) => (
+        <div className="card" key={s.subject} style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10, color: 'var(--navy)' }}>{s.subject}</div>
+          <table>
+            <thead><tr><th>Week</th><th>Topic</th><th>Content</th></tr></thead>
+            <tbody>
+              {s.weeks.map((w) => (
+                <tr key={w.weekStart} style={w.isBreak ? { opacity: 0.55 } : undefined}>
+                  <td className="mono">Week {w.weekStart}{w.weekEnd > w.weekStart ? `–${w.weekEnd}` : ''}</td>
+                  <td>{w.isBreak ? <em>Break</em> : (w.topics.Topic || '—')}</td>
+                  <td>{w.isBreak ? '—' : (w.topics.Content || '—')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
