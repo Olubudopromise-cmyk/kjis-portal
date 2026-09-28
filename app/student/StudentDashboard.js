@@ -204,7 +204,7 @@ export default function StudentDashboard({ student }) {
         {tab === 'attendance' && <AttendanceView studentId={student.id} />}
         {tab === 'fees' && <FeesView student={student} balance={balance} />}
         {tab === 'results' && <ReportCardView studentId={student.id} category={student.category} />}
-        {tab === 'subjects' && <SubjectsView category={student.category} />}
+        {tab === 'subjects' && <SubjectsView />}
         {tab === 'scheme' && <SchemeOfWorkView />}
         {tab === 'timetable' && <TimetableView />}
         {tab === 'ai' && <AiTutorView />}
@@ -457,19 +457,31 @@ function ReportCardView({ studentId, category }) {
   );
 }
 
-function SubjectsView({ category }) {
-  const [list, setList] = useState(null);
+function SubjectsView() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
   useEffect(() => {
-    if (!category) { setList([]); return; }
-    fetch('/api/subjects').then((r) => r.json()).then((d) => setList(d.subjects?.[category] || []));
-  }, [category]);
-  if (list === null) return <div className="card empty-note">Loading…</div>;
+    fetch('/api/scheme-of-work')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setError(d.error); setData({ subjects: [] }); return; }
+        setData(d);
+      })
+      .catch(() => { setError('Could not load your subjects.'); setData({ subjects: [] }); });
+  }, []);
+  if (!data) return <div className="card empty-note">Loading…</div>;
+  const subjects = data.subjects || [];
   return (
     <div className="card">
-      <div style={{ fontWeight: 700, marginBottom: 10 }}>Subjects — {category || 'No category set'}</div>
-      {!list.length ? <div className="empty-note">No subjects added yet.</div> : (
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>My Subjects</div>
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>
+        {data.classLevel ? `${data.classLevel.replace('SSS', 'SS').replace(/^(JSS|SS)(\d)$/, '$1 $2')} · ${data.term} · ${subjects.length} subjects` : ''}
+      </div>
+      {error && <div className="empty-note">{error}</div>}
+      {!error && !subjects.length && <div className="empty-note">No subjects published for your class yet.</div>}
+      {!!subjects.length && (
         <table><thead><tr><th>#</th><th>Subject</th></tr></thead>
-          <tbody>{list.map((s, i) => <tr key={s.id}><td className="mono">{i + 1}</td><td>{s.name}</td></tr>)}</tbody>
+          <tbody>{subjects.map((s, i) => <tr key={s.subjectKey || s.subject}><td className="mono">{i + 1}</td><td>{s.subject}</td></tr>)}</tbody>
         </table>
       )}
     </div>
