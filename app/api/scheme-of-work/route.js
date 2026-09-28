@@ -3,6 +3,8 @@ import supabaseAdmin from '../../../lib/db';
 import { getSession } from '../../../lib/session';
 import { classLevelForClassName, termNameForSession } from '../../../lib/curriculum';
 
+export const dynamic = 'force-dynamic';
+
 // GET — the signed-in student's scheme of work for the current term.
 // Returns one entry per subject, each with its weeks (topics) for the term.
 export async function GET() {
