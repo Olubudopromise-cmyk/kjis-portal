@@ -31,7 +31,8 @@ export default function FaceVerifyPage() {
     if (!res.ok) { setError(data.error || 'Verification failed.'); return; }
     sessionStorage.removeItem('kjis_face_token');
     sessionStorage.removeItem('kjis_face_name');
-    router.push('/student');
+    // Hard navigation so the dashboard renders against the fresh session cookie.
+    window.location.href = '/student';
   }
 
   return (

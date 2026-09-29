@@ -1,7 +1,6 @@
 'use client';
 
 import { useSelectedLayoutSegment, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Sidebar from './Sidebar';
 
 export default function AdminShell({ children, session }) {
@@ -38,7 +37,15 @@ export default function AdminShell({ children, session }) {
         </div>
         <div className="top-right">
           <span>{session?.name || 'Admin'}</span>
-          <Link href="/api/auth/logout" className="btn btn-ghost btn-sm">Sign out</Link>
+          {/* NB: a <Link href="/api/auth/logout"> gets prefetched by the router and
+              silently destroys the session seconds after login. Logout only on click. */}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => handleNavigate('signout')}
+          >
+            Sign out
+          </button>
         </div>
       </div>
 

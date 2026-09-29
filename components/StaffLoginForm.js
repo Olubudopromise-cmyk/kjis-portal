@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 /**
  * Shared form for the un-advertised staff login pages (/teacher/login and
@@ -9,7 +8,6 @@ import { useRouter } from 'next/navigation';
  * are deliberately not linked from anywhere in the app.
  */
 export default function StaffLoginForm({ role, label }) {
-  const router = useRouter();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,7 +28,10 @@ export default function StaffLoginForm({ role, label }) {
       setError(data.error || 'Login failed.');
       return;
     }
-    router.push('/' + role);
+    // Hard navigation: the shell lives in the server layout for this segment,
+    // and a client-side push reuses the bare-children layout rendered while we
+    // were still on the login page (no cookie), leaving the portal shell absent.
+    window.location.href = '/' + role;
   }
 
   return (

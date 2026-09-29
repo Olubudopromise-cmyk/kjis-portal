@@ -30,7 +30,9 @@ export default function LoginPage() {
       router.push('/login/face-verify');
       return;
     }
-    router.push('/student');
+    // Hard navigation so the dashboard renders against the fresh session cookie
+    // instead of reusing any layout cached from the pre-login render.
+    window.location.href = '/student';
   }
 
   return (
