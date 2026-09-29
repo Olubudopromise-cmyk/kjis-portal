@@ -2,6 +2,7 @@ import { getSession } from '../../lib/session';
 import { cookies } from 'next/headers';
 import supabaseAdmin from '../../lib/db';
 import AdminShell from '../../components/AdminShell';
+import AdminGate from '../../components/AdminGate';
 import AdminNotFound from './not-found';
 
 export default async function AdminLayout({ children }) {
@@ -11,20 +12,14 @@ export default async function AdminLayout({ children }) {
   const sessionRole = session?.role || null;
   console.log('[admin/layout] session check:', { hasCookie, sessionRole, sessionExists: !!session });
 
-  // No session cookie at all -> this is the unauthenticated case, which means
-  // the page being rendered is /admin/login (middleware bounces every other
-  // /admin path to it). Render that page bare, without the portal shell, and
-  // crucially WITHOUT redirecting: /admin/login lives inside this segment, so
-  // redirecting here is what previously caused a redirect loop.
-  if (!hasCookie) return <>{children}</>;
-
-  // A cookie exists but the token is expired/tampered with, or it belongs to
-  // another role. Return the not-found page directly (not throw notFound())
-  // so it replaces the entire segment — throwing renders the not-found page
-  // alongside the page content, producing a broken half-rendered screen.
-  if (!session || session.role !== 'admin') {
-    console.log('[admin/layout] rendering AdminNotFound — session invalid');
-    return <AdminNotFound />;
+  // Not a valid admin session (no cookie, expired/tampered token, or another
+  // role). Delegate to AdminGate: /admin/login always renders its sign-in form
+  // — checking the session here used to replace the form with the expired
+  // screen, making admin login impossible while a bad cookie existed. Every
+  // other page in this tree gets the not-found screen instead.
+  if (!hasCookie || !session || session.role !== 'admin') {
+    console.log('[admin/layout] gating segment — session invalid', { hasCookie, sessionRole });
+    return <AdminGate expired={<AdminNotFound />}>{children}</AdminGate>;
   }
   console.log('[admin/layout] rendering AdminShell');
 
