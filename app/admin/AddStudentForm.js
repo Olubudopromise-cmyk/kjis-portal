@@ -5,16 +5,6 @@ import FaceCapture from '../../components/FaceCapture';
 
 const CATEGORIES = ['Science', 'Art', 'Commercial'];
 
-// Generates a password suggestion the same way the prototype did:
-// first 3 letters of the first two names + last 3 of the final name.
-function suggestPassword(fullName) {
-  const words = fullName.trim().toUpperCase().split(/\s+/).filter(Boolean);
-  if (words.length >= 3) return words[0].slice(0, 3) + words[1].slice(0, 3) + words[words.length - 1].slice(-3);
-  if (words.length === 2) return words[0].slice(0, 3) + words[1].slice(0, 3);
-  if (words.length === 1) return words[0].slice(0, 6);
-  return '';
-}
-
 export default function AddStudentForm({ classes }) {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
@@ -27,6 +17,10 @@ export default function AddStudentForm({ classes }) {
   const [facePhoto, setFacePhoto] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // One-time credentials card: shown only in the response to this
+  // registration — nothing stores the plaintext, so it can't be reopened.
+  const [created, setCreated] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -44,11 +38,41 @@ export default function AddStudentForm({ classes }) {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setError(data.error || 'Could not add student.'); return; }
+    // Capture the one-time credentials before the form resets. The server only
+    // returns `generatedPassword` when it generated one for us — a password the
+    // admin typed is never echoed back.
+    setCreated({
+      fullName: fullName.trim(),
+      password: data.generatedPassword || null,
+      url: `${window.location.origin}/login`,
+    });
     setFullName(''); setPassword(''); setClassId(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFaceConsent(false); setFacePhoto(null);
     router.refresh();
   }
 
+  async function copyDetails() {
+    const text = [
+      'King James International School — student login',
+      `URL: ${created.url}`,
+      `Name: ${created.fullName}`,
+      ...(created.password ? [`Password: ${created.password}`] : []),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
+    <>
     <div className="card">
       <div style={{ fontWeight: 700, marginBottom: 10 }}>Register a student</div>
       {error && <div className="error-msg">{error}</div>}
@@ -57,16 +81,18 @@ export default function AddStudentForm({ classes }) {
           <label>Full name</label>
           <input
             value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              if (!password) setPassword(suggestPassword(e.target.value));
-            }}
+            onChange={(e) => setFullName(e.target.value)}
             required
           />
         </div>
         <div className="field">
-          <label>Password</label>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <label>Password (optional)</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to auto-generate"
+            autoComplete="new-password"
+          />
         </div>
         <div className="field">
           <label>Admission No.</label>
@@ -115,5 +141,58 @@ export default function AddStudentForm({ classes }) {
         </button>
       </form>
     </div>
+
+    {/* One-time credentials confirmation — rendered only from this response,
+        never re-fetchable. Re-sharing means Reset password → new password. */}
+    {created && (
+      <div
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(10, 20, 40, 0.55)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="card" style={{ width: '100%', maxWidth: 420 }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>✅ Student registered</div>
+          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
+            Share these details with the parent/student now. They can't be viewed again —
+            if they're lost, use <b>Reset password</b> to generate a new one.
+          </div>
+          <div className="field">
+            <label>Login URL</label>
+            <input readOnly value={created.url} onFocus={(e) => e.target.select()} />
+          </div>
+          <div className="field">
+            <label>Full name (used to sign in)</label>
+            <input readOnly value={created.fullName} onFocus={(e) => e.target.select()} />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input
+              readOnly
+              value={created.password || ''}
+              onFocus={(e) => e.target.select()}
+              style={{ fontFamily: 'monospace', letterSpacing: 0.5 }}
+            />
+            {!created.password && (
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
+                You set this password yourself, so it isn't shown here.
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button type="button" className="btn btn-navy" style={{ flex: 1 }} onClick={copyDetails}>
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setCreated(null)}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
