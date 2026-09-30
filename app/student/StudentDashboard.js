@@ -215,7 +215,7 @@ export default function StudentDashboard({ student }) {
         )}
         {tab === 'attendance' && <AttendanceView studentId={student.id} />}
         {tab === 'fees' && <FeesView student={student} balance={balance} />}
-        {tab === 'results' && <ReportCardView studentId={student.id} category={student.category} />}
+        {tab === 'results' && <ReportCardView studentId={student.id} />}
         {tab === 'subjects' && <SubjectsView />}
         {tab === 'scheme' && <SchemeOfWorkView />}
         {tab === 'timetable' && <TimetableView />}
@@ -421,8 +421,15 @@ function FeesView({ student, balance }) {
   );
 }
 
-function ReportCardView({ studentId, category }) {
+function ReportCardView({ studentId }) {
   const [subjects, setSubjects] = useState(null);
+  // The list the API resolved for this student ('Junior' or a senior stream).
+  // This must not come from the `category` prop: that is NULL for junior
+  // students, which is exactly what made them see "No study category assigned".
+  const [resolvedCategory, setResolvedCategory] = useState(null);
+  // Guards against flashing the "no study category" message before the server
+  // has had a chance to say a junior student actually does have a list.
+  const [categoryResolved, setCategoryResolved] = useState(false);
   const [results, setResults] = useState({});
   const [terms, setTerms] = useState([]);
   const [term, setTerm] = useState('');
@@ -437,10 +444,22 @@ function ReportCardView({ studentId, category }) {
     }).catch(() => setTerms([]));
   }, [studentId]);
 
+  // Ask the API which subject list applies to this student. The server resolves
+  // JSS -> 'Junior' and senior -> their stream, so a junior student (whose
+  // users.category is NULL) gets the junior list instead of nothing.
   useEffect(() => {
-    if (!category) { setSubjects([]); return; }
-    fetch('/api/subjects').then((r) => r.json()).then((d) => setSubjects((d.subjects?.[category] || []).map((s) => s.name)));
-  }, [category]);
+    let cancelled = false;
+    fetch(`/api/subjects?studentId=${studentId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        setResolvedCategory(d.category || null);
+        setSubjects(d.subjects || []);
+      })
+      .catch(() => { if (!cancelled) { setResolvedCategory(null); setSubjects([]); } })
+      .finally(() => { if (!cancelled) setCategoryResolved(true); });
+    return () => { cancelled = true; };
+  }, [studentId]);
 
   useEffect(() => {
     if (!term) return;
@@ -460,7 +479,16 @@ function ReportCardView({ studentId, category }) {
   }, [studentId, term]);
 
   if (subjects === null) return <div className="card empty-note">Loading…</div>;
-  if (!subjects.length) return <div className="card empty-note">{category ? 'No subjects set up for your category yet.' : 'No study category assigned yet.'}</div>;
+  if (!categoryResolved) return <div className="card empty-note">Loading…</div>;
+  if (!subjects.length) {
+    return (
+      <div className="card empty-note">
+        {resolvedCategory
+          ? `No subjects set up yet for ${resolvedCategory === 'Junior' ? 'junior classes' : resolvedCategory}. Ask the school office to add them.`
+          : 'No study category assigned yet.'}
+      </div>
+    );
+  }
 
   const rows = subjects.map((s) => {
     const r = results[s];

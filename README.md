@@ -20,15 +20,15 @@ by others.
   self-reset their password via email (Resend).
 - **Admin** — register students (Admission No. is required and becomes the password;
   optional face capture), register teachers and assign them a class, manage subjects
-  per category (Science/Art/Commercial), post notices, build each class's weekly
-  timetable (including **All Classes** whole-school entries like assembly, added once
-  and merged into every student's and teacher's week), set the school's
-  **current term** so results roll over cleanly between terms, and reset student
-  passwords directly.
+  (**Junior (JSS)** gets one flat non-streamed list; **Senior (SS)** keeps the
+  Science/Art/Commercial stream tabs), post notices, add **All Classes** whole-school
+  timetable events, and reset student passwords directly.
 - **Teacher** — register students straight into their own class (with face capture),
-  mark daily attendance, enter CA/exam scores per subject, view their class's fee
-  status and a read-only **Timetable** (their class's periods plus whole-school
-  events), and reset student passwords directly.
+  mark daily attendance, enter CA/exam scores per subject (the subject list is
+  resolved from the student's class, so JSS and SS students both work), view their
+  class's fee status, **build their own class's weekly timetable** in a Mon–Fri grid
+  (their own periods editable, whole-school events shown read-only), and reset
+  student passwords directly.
 - **Student** — attendance history with a running %, a printable termly report card
   with a **term switcher** to look back at past terms, their subject list, their
   weekly timetable (class periods **+ 🎓 All Classes** events), an AI study assistant
@@ -53,6 +53,10 @@ by others.
   entries meaning the same slot but typed differently won't be flagged. Conflicts are a
   **warning** the admin can override, not a hard block.
 - Report cards don't yet show a class position/rank, just the student's own scores.
+- **The `subjects` table needs migration `012_subjects_junior.sql` before any Junior
+  (JSS) subject can be added.** Until it is run, `subjects.category` still only
+  accepts Science/Art/Commercial and the Junior list stays empty. The admin page and
+  the API both say so explicitly rather than failing silently.
 - No payment-status polling after returning from Paystack checkout — the balance
   updates as soon as the webhook fires, but the page itself doesn't auto-refresh.
 

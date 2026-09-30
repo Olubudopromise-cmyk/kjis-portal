@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import supabaseAdmin from '../../../../lib/db';
 import { getSession } from '../../../../lib/session';
+import { subjectCategoryFor, describeCategory } from '../../../../lib/subjects';
 
 // Server-side call to the Anthropic API — the key never reaches the browser.
 // Only logged-in students can use this, and it's scoped to their own
@@ -15,13 +16,27 @@ export async function POST(request) {
   if (!message) return NextResponse.json({ error: 'A message is required.' }, { status: 400 });
 
   const { data: student } = await supabaseAdmin.from('users').select('*').eq('id', session.id).single();
+
+  // Resolve the student's subject list the same way every other screen does:
+  // JSS students share the 'Junior' list, senior students get their stream.
+  // Previously this was `if (student.category)`, so a junior student (category
+  // NULL) got an empty list and the tutor answered with no subject context.
   let subjectList = [];
-  if (student?.category) {
-    const { data: subs } = await supabaseAdmin.from('subjects').select('name').eq('category', student.category);
+  let className = null;
+  if (student?.class_id) {
+    const { data: klass } = await supabaseAdmin
+      .from('classes').select('name').eq('id', student.class_id).maybeSingle();
+    className = klass?.name || null;
+  }
+  const subjectCategory = subjectCategoryFor({ className, category: student?.category });
+  if (subjectCategory) {
+    const { data: subs } = await supabaseAdmin
+      .from('subjects').select('name').eq('category', subjectCategory);
     subjectList = (subs || []).map((s) => s.name);
   }
+  const categoryLabel = describeCategory({ className, category: student?.category });
 
-  const systemPrompt = `You are the King James International School AI Study Assistant, helping a student named ${student.full_name}${student.category ? `, studying the ${student.category} category` : ''}${subjectList.length ? ` (subjects: ${subjectList.join(', ')})` : ''}.
+  const systemPrompt = `You are the King James International School AI Study Assistant, helping a student named ${student.full_name}${categoryLabel ? `, in ${className || categoryLabel}` : ''}${subjectList.length ? ` (subjects: ${subjectList.join(', ')})` : ''}.
 Help with schoolwork: explain concepts clearly for their level, help them work through homework step by step without just handing over answers to what look like graded assignments, and offer to quiz them.
 Keep answers focused and appropriately short for a chat window. Politely decline anything unrelated to schoolwork or inappropriate for a student.`;
 

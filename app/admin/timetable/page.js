@@ -1,19 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { DAYS, ALL_CLASSES_TAG, buildGrid, comparePeriods } from '../../../lib/timetable-grid';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const ALL_CLASSES = 'all';
 
-const EMPTY = { dayOfWeek: 'Monday', periodLabel: '', subject: '', teacherName: '' };
+const EMPTY = { dayOfWeek: 'Monday', periodLabel: '', subject: '' };
 
+// Admins own WHOLE-SCHOOL entries only. Per-class schedules are built by each
+// class's teacher, so this page offers a read-only view of any class for
+// oversight and edit controls exclusively for All Classes.
 export default function TimetableAdminPage() {
   const [classes, setClasses] = useState([]);
-  const [classId, setClassId] = useState('');
+  const [classId, setClassId] = useState(ALL_CLASSES);
   const [entries, setEntries] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
-  // Conflicts are a soft warning: the first submit comes back 409 with this
-  // list, the admin is shown what overlaps, and only a confirm re-submits.
+  // Conflicts are a soft warning: the first submit comes back 409 with this list
+  // and only a confirm re-submits.
   const [warning, setWarning] = useState(null);
   const [savedNote, setSavedNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,53 +27,36 @@ export default function TimetableAdminPage() {
     fetch('/api/classes').then((r) => r.json()).then((d) => setClasses(d.classes || []));
   }, []);
 
-  function load(cid) {
+  useEffect(() => {
     setWarning(null);
     setSavedNote('');
-    if (!cid) { setEntries([]); return; }
-    const qs = cid === ALL_CLASSES ? '?classId=' + ALL_CLASSES : `?classId=${cid}`;
+    setError('');
+    const qs = classId === ALL_CLASSES ? '?classId=all' : `?classId=${classId}`;
     fetch(`/api/timetable${qs}`).then((r) => r.json()).then((d) => setEntries(d.entries || []));
-  }
-  useEffect(() => load(classId), [classId]);
+  }, [classId]);
 
   async function save(confirmOverwrite) {
     setBusy(true);
     setError('');
     if (!confirmOverwrite) setWarning(null);
-
     const res = await fetch('/api/timetable', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ classId, ...form, confirmOverwrite: confirmOverwrite === true }),
+      body: JSON.stringify({ classId: ALL_CLASSES, ...form, confirmOverwrite: confirmOverwrite === true }),
     });
     const data = await res.json();
     setBusy(false);
-
-    if (res.status === 409 && data.needsConfirmation) {
-      setWarning(data);
-      return;
-    }
+    if (res.status === 409 && data.needsConfirmation) { setWarning(data); return; }
     if (!res.ok) { setError(data.error || 'Could not add entry.'); return; }
-
     setWarning(null);
-    setSavedNote(
-      data.savedOverConflict
-        ? 'Saved — note this now overlaps the other entry in that slot.'
-        : ''
-    );
+    setSavedNote(data.savedOverConflict ? 'Saved — note this now overlaps other entries in that slot.' : '');
     setForm(EMPTY);
-    load(classId);
+    reload();
   }
 
-  async function add(e) {
-    e.preventDefault();
-    if (!classId || !form.periodLabel.trim() || !form.subject.trim()) {
-      setError(isAllClasses
-        ? 'A period and label are required.'
-        : 'A period and subject are required.');
-      return;
-    }
-    await save(false);
+  function reload() {
+    const qs = classId === ALL_CLASSES ? '?classId=all' : `?classId=${classId}`;
+    fetch(`/api/timetable${qs}`).then((r) => r.json()).then((d) => setEntries(d.entries || []));
   }
 
   async function remove(id) {
@@ -80,15 +66,20 @@ export default function TimetableAdminPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    load(classId);
+    reload();
   }
+
+  const allClassEntries = entries.filter((e) => !e.class_id).sort((a, b) =>
+    DAYS.indexOf(a.day_of_week) - DAYS.indexOf(b.day_of_week) || comparePeriods(a.period_label, b.period_label));
+  const grid = buildGrid(entries);
+  const className = classes.find((c) => c.id === classId)?.name || '';
 
   return (
     <div>
       <div className="page-head"><h2>Timetable</h2></div>
       <div className="card" style={{ marginTop: 16 }}>
         <div className="field">
-          <label>Class</label>
+          <label>View</label>
           <select value={classId} onChange={(e) => setClassId(e.target.value)}>
             <option value={ALL_CLASSES}>🎓 All Classes (whole-school)</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -96,99 +87,138 @@ export default function TimetableAdminPage() {
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
             {isAllClasses
               ? 'Whole-school events — assembly, fellowship, prayers. Added once, shown to every student and teacher.'
-              : `This class's own periods, plus any whole-school events. Entries marked 🎓 apply to everyone.`}
+              : 'Read-only. Each class teacher builds their own weekly schedule.'}
           </div>
         </div>
 
-        <form onSubmit={add} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) auto', gap: 8, alignItems: 'end', marginBottom: 18 }}>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Day</label>
-            <select value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })}>
-              {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Period</label>
-            <input value={form.periodLabel} onChange={(e) => setForm({ ...form, periodLabel: e.target.value })} placeholder="8:00 - 8:40" />
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            {/* Whole-school events have no subject/teacher pairing — just a label. */}
-            <label>{isAllClasses ? 'Label' : 'Subject'}</label>
-            <input
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder={isAllClasses ? 'Assembly' : 'Physics'}
-            />
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Teacher</label>
-            {isAllClasses ? (
-              <input value="" disabled placeholder="Not applicable" />
-            ) : (
-              <input value={form.teacherName} onChange={(e) => setForm({ ...form, teacherName: e.target.value })} placeholder="Optional" />
-            )}
-          </div>
-          <button className="btn btn-navy btn-sm" disabled={busy}>
-            {busy ? 'Saving…' : 'Add'}
-          </button>
-        </form>
-
-        {error && <div className="error-msg" style={{ marginBottom: 12 }}>{error}</div>}
-        {savedNote && <div className="notice" style={{ marginBottom: 12 }}>{savedNote}</div>}
-
-        {warning && (
-          <div
-            role="alert"
-            style={{
-              border: '1px solid var(--gold, #d4a017)', background: 'rgba(212,160,23,0.12)',
-              borderRadius: 8, padding: 12, marginBottom: 14,
+        {isAllClasses ? (
+          <>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!form.periodLabel.trim() || !form.subject.trim()) {
+                setError('A period and label are required.');
+                return;
+              }
+              setError('');
+              save(false);
             }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>⚠️ {warning.message}</div>
-            <div style={{ fontSize: 12.5, marginBottom: 10, lineHeight: 1.5 }}>
-              Whole-school events shouldn&apos;t normally sit on top of a scheduled lesson.
-              Check this is intended:
-            </div>
-            <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12.5 }}>
-              {warning.conflicts.map((c) => (
-                <li key={c.id}>
-                  <b>{c.isAllClasses ? '🎓 All Classes' : c.scope}</b> — {c.label}
-                  {c.teacher ? ` (${c.teacher})` : ''}
-                </li>
-              ))}
-            </ul>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setWarning(null)}>Cancel</button>
-              <button className="btn btn-gold btn-sm" onClick={() => save(true)} disabled={busy}>
-                {busy ? 'Saving…' : 'Save anyway'}
-              </button>
-            </div>
-          </div>
-        )}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 8, alignItems: 'end', marginBottom: 18 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Day</label>
+                <select value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })}>
+                  {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Period</label>
+                <input value={form.periodLabel} onChange={(e) => setForm({ ...form, periodLabel: e.target.value })} placeholder="8:00 - 8:40" />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Label</label>
+                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Assembly" />
+              </div>
+              <button className="btn btn-navy btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Add'}</button>
+            </form>
 
-        {!entries.length ? (
-          <div className="empty-note">
-            {isAllClasses ? 'No whole-school events yet.' : 'No timetable entries for this class yet.'}
-          </div>
+            {error && <div className="error-msg" style={{ marginBottom: 12 }}>{error}</div>}
+            {savedNote && <div className="notice" style={{ marginBottom: 12 }}>{savedNote}</div>}
+
+            {warning && (
+              <div role="alert" style={{
+                border: '1px solid var(--gold)', background: 'rgba(201,162,39,0.12)',
+                borderRadius: 8, padding: 12, marginBottom: 14,
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>⚠️ {warning.message}</div>
+                <div style={{ fontSize: 12.5, marginBottom: 10, lineHeight: 1.5 }}>
+                  Whole-school events shouldn&apos;t normally sit on top of a scheduled lesson.
+                  Check this is intended:
+                </div>
+                <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12.5 }}>
+                  {warning.conflicts.map((c) => (
+                    <li key={c.id}>
+                      <b>{c.isAllClasses ? ALL_CLASSES_TAG : c.scope}</b> — {c.label}
+                      {c.teacher ? ` (${c.teacher})` : ''}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setWarning(null)}>Cancel</button>
+                  <button className="btn btn-gold btn-sm" onClick={() => save(true)} disabled={busy}>
+                    {busy ? 'Saving…' : 'Save anyway'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Whole-school events ({allClassEntries.length})
+            </div>
+            {!allClassEntries.length ? (
+              <div className="empty-note">No whole-school events yet.</div>
+            ) : (
+              <table>
+                <thead><tr><th>Day</th><th>Period</th><th>Label</th><th></th></tr></thead>
+                <tbody>{allClassEntries.map((e) => (
+                  <tr key={e.id}>
+                    <td>{e.day_of_week}</td>
+                    <td className="mono">{e.period_label}</td>
+                    <td>{e.subject}</td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={() => remove(e.id)}>Remove</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
+          </>
         ) : (
-          <table>
-            <thead><tr><th>Applies to</th><th>Day</th><th>Period</th><th>{isAllClasses ? 'Label' : 'Subject'}</th><th>Teacher</th><th></th></tr></thead>
-            <tbody>{entries.map((e) => {
-              const all = !e.class_id;
-              return (
-                <tr key={e.id}>
-                  <td style={{ color: all ? 'var(--gold, #d4a017)' : 'inherit', fontWeight: all ? 700 : 400 }}>
-                    {all ? '🎓 All Classes' : (classes.find((c) => c.id === e.class_id)?.name || e.class_id)}
-                  </td>
-                  <td>{e.day_of_week}</td>
-                  <td className="mono">{e.period_label}</td>
-                  <td>{e.subject}</td>
-                  <td>{e.teacher_name || '—'}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => remove(e.id)}>Remove</button></td>
-                </tr>
-              );
-            })}</tbody>
-          </table>
+          <>
+            <div className="notice" style={{ marginBottom: 14 }}>
+              <b>{className}</b> is scheduled by its class teacher — this view is read-only.
+              {grid.length ? '' : ' Nothing has been entered yet.'}
+            </div>
+            {grid.length && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ minWidth: 720 }}>
+                  <thead>
+                    <tr><th style={{ width: 130 }}>Period</th>{DAYS.map((d) => <th key={d}>{d}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {grid.map((row) => (
+                      <tr key={row.period}>
+                        <td className="mono" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>{row.period}</td>
+                        {DAYS.map((day) => {
+                          const cell = row.byDay[day];
+                          if (cell?.isAllClasses) {
+                            return (
+                              <td key={day} style={{ background: 'rgba(201,162,39,0.14)' }}>
+                                <span style={{
+                                  display: 'inline-block', padding: '1px 6px', borderRadius: 10,
+                                  fontSize: 10.5, fontWeight: 700, background: 'var(--gold)',
+                                  color: 'var(--navy)', whiteSpace: 'nowrap',
+                                }}>{ALL_CLASSES_TAG}</span>{' '}
+                                {cell.entry.subject}
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={day}>
+                              {cell?.entry ? (
+                                <>
+                                  {cell.entry.subject}
+                                  {cell.entry.teacher_name && (
+                                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{cell.entry.teacher_name}</div>
+                                  )}
+                                </>
+                              ) : <span style={{ color: 'var(--muted)' }}>—</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

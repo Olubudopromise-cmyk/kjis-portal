@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import ResetStudentPassword from '../../components/ResetStudentPassword';
-import TimetableGrid from '../../components/TimetableGrid';
+import TeacherTimetableBuilder from '../../components/TeacherTimetableBuilder';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -74,12 +74,10 @@ export default function TeacherDashboard({ session, teacher, className }) {
         {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
         {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
         {tab === 'timetable' && (
-          <>
-            <div className="page-head" style={{ marginBottom: 12 }}>
-              <h2>Timetable — {classLabel}</h2>
-            </div>
-            <TimetableGrid emptyNote="No timetable has been set up for your class yet." />
-          </>
+          <TeacherTimetableBuilder
+            className={classLabel}
+            teacherName={teacher?.full_name}
+          />
         )}
       </div>
     </>
@@ -223,6 +221,12 @@ function ResultsTab({ roster }) {
   const [studentId, setStudentId] = useState(roster[0].id);
   const student = roster.find((s) => s.id === studentId);
   const [subjects, setSubjects] = useState([]);
+  // Which subject list the API resolved for this student ('Junior' or a stream),
+  // plus whether that resolution has finished. Until it has, the screen must
+  // not claim the student has no category — that is exactly the message a
+  // junior student used to get, and a flash of it reads as a real answer.
+  const [resolvedCategory, setResolvedCategory] = useState(null);
+  const [categoryResolved, setCategoryResolved] = useState(false);
   const [scores, setScores] = useState({});
   const [term, setTerm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -240,12 +244,21 @@ function ResultsTab({ roster }) {
 
   useEffect(() => {
     setSaved(false);
-    if (!student?.category) { setSubjects([]); setSelectedSubject(''); return; }
-    fetch('/api/subjects').then((r) => r.json()).then((d) => {
-      const names = (d.subjects?.[student.category] || []).map((s) => s.name);
-      setSubjects(names);
-      setSelectedSubject((current) => (names.includes(current) ? current : names[0] || ''));
-    });
+    // Resolve the list server-side: JSS -> Junior, senior -> their stream. The
+    // old `if (!student?.category) return` meant a junior student could never be
+    // scored at all, because their category is legitimately NULL.
+    let cancelled = false;
+    fetch(`/api/subjects?studentId=${studentId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        const names = d.subjects || [];
+        setSubjects(names);
+        setResolvedCategory(d.category || null);
+        setSelectedSubject((current) => (names.includes(current) ? current : names[0] || ''));
+      })
+      .catch(() => { if (!cancelled) { setSubjects([]); setResolvedCategory(null); } })
+      .finally(() => { if (!cancelled) setCategoryResolved(true); });
     fetch(`/api/results?studentId=${studentId}`).then((r) => r.json()).then((d) => {
       const m = {};
       (d.results || []).forEach((r) => { m[r.subject] = { ca: r.ca ?? '', exam: r.exam ?? '' }; });
@@ -327,10 +340,14 @@ function ResultsTab({ roster }) {
         </select>
       </div>
       {term && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>Scoring for: <b>{term}</b> — set by admin</div>}
-      {!student?.category ? (
+      {!categoryResolved ? (
+        <div className="card empty-note">Loading subjects…</div>
+      ) : !resolvedCategory ? (
         <div className="empty-note">{student.full_name} has no study category assigned yet — ask the administrator to set one first.</div>
       ) : !subjects.length ? (
-        <div className="empty-note">No subjects set up yet for {student.category}. Add some from Admin → Subjects.</div>
+        <div className="empty-note">
+          No subjects set up yet for {resolvedCategory === 'Junior' ? 'junior classes' : resolvedCategory}. Add some from Admin → Categories &amp; Subjects.
+        </div>
       ) : (
         <>
           <table>
