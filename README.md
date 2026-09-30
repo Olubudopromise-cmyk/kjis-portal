@@ -15,26 +15,43 @@ by others.
   sessions, plus **real face verification** for students who have a reference photo
   on file — matched server-side against AWS Rekognition, never trusted from the
   browser. Students without a photo on file simply skip that step (see "Known gaps"
-  below). Staff can self-reset their password via email (Resend).
-- **Admin** — register students (with optional face capture, auto-generates a
-  suggested password), register teachers and assign them a class, manage subjects
+  below). A student's password is their **Admission No.** (school policy), so
+  registration requires one and **Reset password** defaults back to it. Staff can
+  self-reset their password via email (Resend).
+- **Admin** — register students (Admission No. is required and becomes the password;
+  optional face capture), register teachers and assign them a class, manage subjects
   per category (Science/Art/Commercial), post notices, build each class's weekly
-  timetable, set the school's **current term** so results roll over cleanly
-  between terms, and reset student passwords directly.
+  timetable (including **All Classes** whole-school entries like assembly, added once
+  and merged into every student's and teacher's week), set the school's
+  **current term** so results roll over cleanly between terms, and reset student
+  passwords directly.
 - **Teacher** — register students straight into their own class (with face capture),
   mark daily attendance, enter CA/exam scores per subject, view their class's fee
-  status, and reset student passwords directly.
+  status and a read-only **Timetable** (their class's periods plus whole-school
+  events), and reset student passwords directly.
 - **Student** — attendance history with a running %, a printable termly report card
   with a **term switcher** to look back at past terms, their subject list, their
-  weekly timetable, an AI study assistant (calls Claude server-side, key never
-  reaches the browser), school notices, and paying their fee balance through a real
-  Paystack checkout.
+  weekly timetable (class periods **+ 🎓 All Classes** events), an AI study assistant
+  (calls Claude server-side, key never reaches the browser), school notices, and
+  paying their fee balance through a real Paystack checkout.
 
 ## Known gaps
 
 - No screen yet for admin to add a reference photo to a student who was already
   registered before face verification existed — see the note in
   `app/api/auth/login/route.js`.
+- Face verification has **no liveness check**. The camera widget grabs a single still
+  and `CompareFaces` matches against it, so a printed photo of the right face would
+  pass. Closing that gap needs AWS Face Liveness (a separate service and IAM action)
+  or a client-side challenge — it is not a small change, so it is called out rather
+  than hidden.
+- The `face_consent` column is recorded but never read: there's no admin report of who
+  consented and no self-service deletion flow, even though the privacy page promises
+  guardians can request deletion of a reference photo.
+- Timetable conflict detection compares `period_label` by **string equality**
+  (`"8:00 - 8:40"`), because the table has no `start_time`/`end_time` columns. Two
+  entries meaning the same slot but typed differently won't be flagged. Conflicts are a
+  **warning** the admin can override, not a hard block.
 - Report cards don't yet show a class position/rank, just the student's own scores.
 - No payment-status polling after returning from Paystack checkout — the balance
   updates as soon as the webhook fires, but the page itself doesn't auto-refresh.
@@ -66,14 +83,78 @@ by others.
 ## 3. Set up face verification (AWS Rekognition)
 
 Face verification only activates for a student once they have a reference photo on
-file — you can skip this section entirely for launch and add it later.
+file — a student with no `face_photo_url` logs in on their name + admission number
+alone and skips this step entirely.
 
-1. In the [AWS Console](https://console.aws.amazon.com), create an IAM user with
-   **only** the `rekognition:CompareFaces` permission (least privilege — this key
-   should not be able to do anything else in your AWS account).
-2. Generate an access key for that user — copy the Access Key ID and Secret Access
-   Key.
-3. Pick a region close to Nigeria that supports Rekognition (e.g. `eu-west-1`).
+Since the password is the Admission No. (low entropy, and visible in the admin
+Students table), this is the intended second factor. Get it working.
+
+### Exactly what you need from AWS
+
+**1. An IAM user with an access key.** In the [AWS Console](https://console.aws.amazon.com)
+→ IAM → Users → Create user. Attach **only** this inline policy — nothing more:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": "rekognition:CompareFaces",
+    "Resource": "*"
+  }]
+}
+```
+
+`rekognition:CompareFaces` is the **only** Rekognition action this app calls. You do
+**not** need `CreateCollection`, `IndexFaces`, `DetectFaces`, or any face collection —
+nothing here stores faces in a Rekognition collection. Do not add `AmazonRekognitionFullAccess`;
+it is far broader than this app uses.
+
+**2. An access key for that user** — IAM → your user → Security credentials →
+Create access key. Copy the **Access Key ID** and **Secret Access Key** at the moment
+they are shown; AWS will not show the secret again.
+
+**3. A region that supports Rekognition**, and it must be the **same region your
+access key was created in** — Rekognition endpoints are regional, keys are not global.
+`eu-west-1` (Ireland) is the usual choice for Nigeria; `af-south-1` also works and is
+geographically closest. Verify your chosen region offers Rekognition in the
+[AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-services/)
+list before committing to it.
+
+**4. Nothing else.** No Face Liveness webhook, no content moderation, no Rekognition
+collection to create. The app sends two JPEGs to `CompareFaces` and reads back a
+similarity score.
+
+### The values to put in `.env.local`
+
+```bash
+AWS_REGION=eu-west-1                    # must match the key's region
+AWS_ACCESS_KEY_ID=AKIA...               # from the IAM user
+AWS_SECRET_ACCESS_KEY=...               # from the IAM user
+```
+
+### Verify it before deploying
+
+```bash
+npm run check-face
+```
+
+This reports which of the three variables are missing, confirms the `student-faces`
+bucket exists and is private, and tells you how many students have a reference photo.
+
+To prove the credentials, region, IAM policy and network path all work end to end,
+run the self-test against a clear, front-facing photo of a face:
+
+```bash
+npm run check-face -- --self-test path/to/face.jpg
+```
+
+It compares that image against **itself**, which should return ~100% similarity. If it
+fails, the script names the likely cause (bad key, missing permission, wrong region,
+or simply no detectable face in the photo).
+
+**Don't commit real keys.** `.env.local` is gitignored; on Vercel set the three
+`AWS_*` values as encrypted environment variables.
 
 ## 4. Set up the AI tutor
 
@@ -145,6 +226,11 @@ git push -u origin main
 ## Security notes baked in already
 
 - Passwords are bcrypt-hashed, never stored or logged in plain text.
+- A student's password is their Admission No. — convenient for parents, but note
+  it is low-entropy and visible in the admin Students table, so it is only as
+  private as that page. Admission numbers are enforced unique (case-insensitive)
+  so two students can never share a password. Face verification at login is the
+  intended second factor for students who have a reference photo on file.
 - Face verification is a genuine server-side match (AWS Rekognition), gated behind
   a short-lived token that only proves "the password was correct" — it cannot be
   reused as a real session, and only 5 minutes to complete the face check.

@@ -254,6 +254,7 @@ export default function StudentTable({ students, classes = [] }) {
         <ResetStudentPassword
           studentId={resetStudent.id}
           studentName={resetStudent.full_name}
+          admissionNo={resetStudent.admission_no}
           onClose={() => setResetStudent(null)}
         />
       )}

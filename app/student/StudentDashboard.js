@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
+import TimetableGrid from '../../components/TimetableGrid';
 import { NoticesIcon } from '../../components/icons';
 
 function gradeFor(total) {
@@ -618,33 +619,7 @@ function SchemeOfWorkView() {
 }
 
 function TimetableView() {
-  const [entries, setEntries] = useState(null);
-  useEffect(() => {
-    fetch('/api/timetable')
-      .then((r) => r.json())
-      .then((d) => setEntries(d.entries || []))
-      .catch(() => setEntries([]));
-  }, []);
-  if (entries === null) return <div className="card empty-note">Loading…</div>;
-  if (!entries.length) return <div className="card empty-note">No timetable has been set up for your class yet.</div>;
-
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  return (
-    <div className="card">
-      {days.map((day) => {
-        const dayEntries = entries.filter((e) => e.day_of_week === day);
-        if (!dayEntries.length) return null;
-        return (
-          <div key={day} style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{day}</div>
-            <table><thead><tr><th>Period</th><th>Subject</th><th>Teacher</th></tr></thead>
-              <tbody>{dayEntries.map((e) => <tr key={e.id}><td className="mono">{e.period_label}</td><td>{e.subject}</td><td>{e.teacher_name || '—'}</td></tr>)}</tbody>
-            </table>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return <TimetableGrid emptyNote="No timetable has been set up for your class yet." />;
 }
 
 function AiTutorView() {

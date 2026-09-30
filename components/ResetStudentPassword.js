@@ -1,17 +1,13 @@
 'use client';
 import { useState } from 'react';
 
-// Reuses the same password-suggestion logic found in AddStudentForm.js
-function suggestPassword(fullName) {
-  const words = fullName.trim().toUpperCase().split(/\s+/).filter(Boolean);
-  if (words.length >= 3) return words[0].slice(0, 3) + words[1].slice(0, 3) + words[words.length - 1].slice(-3);
-  if (words.length === 2) return words[0].slice(0, 3) + words[1].slice(0, 3);
-  if (words.length === 1) return words[0].slice(0, 6);
-  return '';
-}
-
-export default function ResetStudentPassword({ studentId, studentName, onClose }) {
-  const [newPassword, setNewPassword] = useState(() => suggestPassword(studentName));
+// School policy is that a student's password is their Admission No., so that's
+// the default here. A custom password is available for the cases where the
+// admission number genuinely can't be used (or the admin wants to change it
+// temporarily), but the reset-to-default path is one click.
+export default function ResetStudentPassword({ studentId, studentName, admissionNo, onClose }) {
+  const [mode, setMode] = useState('admission');
+  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +21,13 @@ export default function ResetStudentPassword({ studentId, studentName, onClose }
     const res = await fetch('/api/students', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId, newPassword }),
+      // `useAdmissionNo` asks the server to read the admission number off the
+      // student's own record rather than trusting a value sent from the browser.
+      body: JSON.stringify(
+        mode === 'admission'
+          ? { studentId, useAdmissionNo: true }
+          : { studentId, newPassword }
+      ),
     });
     const data = await res.json();
     setLoading(false);
@@ -34,8 +36,17 @@ export default function ResetStudentPassword({ studentId, studentName, onClose }
       setError(data.error || 'Could not reset password.');
       return;
     }
-    setSuccess(`Password updated for ${studentName}.`);
+    setSuccess(
+      mode === 'admission'
+        ? `Password for ${studentName} is now their Admission No.${admissionNo ? ` (${admissionNo})` : ''}.`
+        : `Custom password set for ${studentName}. Remember to tell them — it can't be viewed again.`
+    );
   }
+
+  const optionStyle = (value) => ({
+    display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13,
+    lineHeight: 1.45, marginBottom: 8, cursor: 'pointer',
+  });
 
   return (
     <div style={{
@@ -52,14 +63,50 @@ export default function ResetStudentPassword({ studentId, studentName, onClose }
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="field">
-              <label>New password</label>
+            <label style={optionStyle('admission')}>
               <input
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
+                type="radio"
+                name="reset-mode"
+                checked={mode === 'admission'}
+                onChange={() => setMode('admission')}
+                style={{ marginTop: 2 }}
               />
-            </div>
+              <span>
+                Reset to their Admission No.
+                <br />
+                <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                  {admissionNo
+                    ? <>Password becomes <b>{admissionNo}</b> — the normal school setup.</>
+                    : <>No admission number on file. Set a custom password instead.</>}
+                </span>
+              </span>
+            </label>
+            <label style={optionStyle('custom')}>
+              <input
+                type="radio"
+                name="reset-mode"
+                checked={mode === 'custom'}
+                onChange={() => setMode('custom')}
+                style={{ marginTop: 2 }}
+              />
+              <span>Set a custom password instead</span>
+            </label>
+            {mode === 'custom' && (
+              <div className="field">
+                <label>New password</label>
+                <input
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={4}
+                  autoComplete="new-password"
+                />
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
+                  At least 4 characters. This one is not stored anywhere readable, so it can only
+                  be seen here.
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn btn-ghost btn-sm" type="button" onClick={onClose}>Cancel</button>
               <button className="btn btn-gold btn-sm" disabled={loading}>

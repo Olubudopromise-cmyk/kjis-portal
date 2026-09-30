@@ -8,7 +8,6 @@ const CATEGORIES = ['Science', 'Art', 'Commercial'];
 export default function AddStudentForm({ classes }) {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('');
   const [classId, setClassId] = useState('');
   const [category, setCategory] = useState('');
   const [totalFee, setTotalFee] = useState('');
@@ -17,8 +16,9 @@ export default function AddStudentForm({ classes }) {
   const [facePhoto, setFacePhoto] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // One-time credentials card: shown only in the response to this
-  // registration — nothing stores the plaintext, so it can't be reopened.
+  // Login details card: shown only in the response to this registration. The
+  // password is the Admission No. the admin just typed, so unlike a generated
+  // secret it can always be looked up again in the Students table.
   const [created, setCreated] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -30,7 +30,7 @@ export default function AddStudentForm({ classes }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fullName, password, classId: classId || null, category: category || null,
+        fullName, classId: classId || null, category: category || null,
         totalFee: totalFee ? Number(totalFee) : 0, admissionNo,
         faceConsent, facePhotoBase64: faceConsent ? facePhoto : null,
       }),
@@ -38,15 +38,16 @@ export default function AddStudentForm({ classes }) {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setError(data.error || 'Could not add student.'); return; }
-    // Capture the one-time credentials before the form resets. The server only
-    // returns `generatedPassword` when it generated one for us — a password the
-    // admin typed is never echoed back.
+    // Take the password from the response, not from local state — that way the
+    // card shows exactly what was hashed and stored.
     setCreated({
-      fullName: fullName.trim(),
-      password: data.generatedPassword || null,
+      fullName: data.student?.full_name || fullName.trim(),
+      admissionNo: data.student?.admission_no || admissionNo.trim(),
+      password: data.password || data.student?.admission_no || '',
+      photoWarning: data.photoWarning || null,
       url: `${window.location.origin}/login`,
     });
-    setFullName(''); setPassword(''); setClassId(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFaceConsent(false); setFacePhoto(null);
+    setFullName(''); setClassId(''); setCategory(''); setTotalFee(''); setAdmissionNo(''); setFaceConsent(false); setFacePhoto(null);
     router.refresh();
   }
 
@@ -55,7 +56,7 @@ export default function AddStudentForm({ classes }) {
       'King James International School — student login',
       `URL: ${created.url}`,
       `Name: ${created.fullName}`,
-      ...(created.password ? [`Password: ${created.password}`] : []),
+      `Password: ${created.password}`,
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -86,17 +87,16 @@ export default function AddStudentForm({ classes }) {
           />
         </div>
         <div className="field">
-          <label>Password (optional)</label>
+          <label>Admission No. (required — this is also the student's password)</label>
           <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Leave blank to auto-generate"
-            autoComplete="new-password"
+            value={admissionNo}
+            onChange={(e) => setAdmissionNo(e.target.value)}
+            required
+            autoComplete="off"
           />
-        </div>
-        <div className="field">
-          <label>Admission No.</label>
-          <input value={admissionNo} onChange={(e) => setAdmissionNo(e.target.value)} />
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
+            The student signs in with their full name and this admission number. It must be unique.
+          </div>
         </div>
         <div className="field">
           <label>Class</label>
@@ -142,8 +142,9 @@ export default function AddStudentForm({ classes }) {
       </form>
     </div>
 
-    {/* One-time credentials confirmation — rendered only from this response,
-        never re-fetchable. Re-sharing means Reset password → new password. */}
+    {/* Login details confirmation. The password here is the Admission No., which
+        is also visible in the Students table — so this card is a convenience for
+        handing it over, not a one-time secret. */}
     {created && (
       <div
         style={{
@@ -156,9 +157,15 @@ export default function AddStudentForm({ classes }) {
       >
         <div className="card" style={{ width: '100%', maxWidth: 420 }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>✅ Student registered</div>
+          {created.photoWarning && (
+            <div className="error-msg" style={{ marginBottom: 12 }}>
+              ⚠️ {created.photoWarning}
+            </div>
+          )}
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
-            Share these details with the parent/student now. They can't be viewed again —
-            if they're lost, use <b>Reset password</b> to generate a new one.
+            Share these details with the parent/student. The password is their Admission
+            No. — it isn&apos;t a one-time secret, so you can always look it up again in the
+            Students table, or restore it with <b>Reset password</b>.
           </div>
           <div className="field">
             <label>Login URL</label>
@@ -169,18 +176,13 @@ export default function AddStudentForm({ classes }) {
             <input readOnly value={created.fullName} onFocus={(e) => e.target.select()} />
           </div>
           <div className="field">
-            <label>Password</label>
+            <label>Password (their Admission No.)</label>
             <input
               readOnly
-              value={created.password || ''}
+              value={created.password}
               onFocus={(e) => e.target.select()}
               style={{ fontFamily: 'monospace', letterSpacing: 0.5 }}
             />
-            {!created.password && (
-              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
-                You set this password yourself, so it isn't shown here.
-              </div>
-            )}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <button type="button" className="btn btn-navy" style={{ flex: 1 }} onClick={copyDetails}>

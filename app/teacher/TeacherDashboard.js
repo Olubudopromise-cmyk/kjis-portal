@@ -2,12 +2,13 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import ResetStudentPassword from '../../components/ResetStudentPassword';
+import TimetableGrid from '../../components/TimetableGrid';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function TeacherDashboard({ session, teacher }) {
+export default function TeacherDashboard({ session, teacher, className }) {
   const [tab, setTab] = useState('overview');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +43,7 @@ export default function TeacherDashboard({ session, teacher }) {
   if (loading) return <div className="card empty-note">Loading your class…</div>;
 
   // Overview data
-  const classId = roster[0]?.class_id;
-  const classNames = [...new Set(roster.map((s) => s.class_id))];
-  const classLabel = classNames.length === 1 ? classNames[0] : 'Multiple classes';
+  const classLabel = className || 'Your class';
 
   return (
     <>
@@ -55,6 +54,7 @@ export default function TeacherDashboard({ session, teacher }) {
           { icon: '📝', label: 'Enter Results', key: 'results' },
           { icon: '💳', label: 'Fee Status', key: 'fees' },
           { icon: '🔧', label: 'Manage', key: 'manage' },
+          { icon: '📅', label: 'Timetable', key: 'timetable' },
           { icon: '🚪', label: 'Sign out', key: 'signout', section: 'user' },
         ]}
         activeKey={tab}
@@ -73,6 +73,14 @@ export default function TeacherDashboard({ session, teacher }) {
         {tab === 'results' && !!roster.length && <ResultsTab roster={roster} />}
         {tab === 'fees' && !!roster.length && <FeesTab roster={roster} />}
         {tab === 'manage' && !!roster.length && <ManageTab roster={roster} />}
+        {tab === 'timetable' && (
+          <>
+            <div className="page-head" style={{ marginBottom: 12 }}>
+              <h2>Timetable — {classLabel}</h2>
+            </div>
+            <TimetableGrid emptyNote="No timetable has been set up for your class yet." />
+          </>
+        )}
       </div>
     </>
   );
@@ -470,6 +478,7 @@ function ManageTab({ roster }) {
         <ResetStudentPassword
           studentId={resetStudent.id}
           studentName={resetStudent.full_name}
+          admissionNo={resetStudent.admission_no}
           onClose={() => setResetStudent(null)}
         />
       )}
